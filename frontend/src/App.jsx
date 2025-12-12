@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Container, Typography, Box, Grid, Fade 
 } from '@mui/material';
-import axios from 'axios';
 
 // Context & Steps
 import { ContractProvider, useContract } from './contexts/ContractContext';
@@ -11,6 +10,7 @@ import Step2BasicInfo from './components/steps/Step2BasicInfo';
 import Step3WorkTime from './components/steps/Step3WorkTime';
 import Step4Wage from './components/steps/Step4Wage';
 import Step5Additional from './components/steps/Step5Additional';
+import Step6Review from './components/steps/Step6Review';
 
 import ContractPreview from './components/common/ContractPreview';
 
@@ -42,7 +42,7 @@ function MainContent() {
             {state.currentStep === 2 && <Step3WorkTime />}
             {state.currentStep === 3 && <Step4Wage />}
             {state.currentStep === 4 && <Step5Additional />}
-            {state.currentStep === 5 && <Typography variant="h5">✅ 작성이 완료되었습니다!</Typography>}
+            {state.currentStep === 5 && <Step6Review />}
           </Box>
         </Grid>
 
