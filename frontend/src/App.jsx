@@ -1,8 +1,9 @@
 import { Container, Paper, Box, Typography } from '@mui/material';
 import { ContractProvider, useContract } from './contexts/ContractContext';
 import Step1TypeSelection from './components/steps/Step1TypeSelection'; 
-import Step2WorkTime from './components/steps/Step2WorkTime';
-import Step3Wage from './components/steps/Step3Wage';
+import Step2BasicInfo from './components/steps/Step2BasicInfo';
+import Step3WorkTime from './components/steps/Step3WorkTime';
+import Step4Wage from './components/steps/Step4Wage';
 
 // A wrapper component to consume the context
 function MainContent() {
@@ -23,11 +24,23 @@ function MainContent() {
         </Box>
 
         {/* Step Content Switcher */}
+          
+        {/* Step 1: Type Selection */}
         {state.currentStep === 0 && <Step1TypeSelection />}
-        {state.currentStep === 1 && <Step2WorkTime />}
-        {state.currentStep === 2 && <Step3Wage />}
-        {state.currentStep === 3 && <Typography>Step 4: AI Review (Coming Soon)</Typography>} 
-        </Paper>
+
+        {/* Step 2: Basic Info (Period, Place, Job) - NEW */}
+        {state.currentStep === 1 && <Step2BasicInfo />}
+        
+        {/* Step 3: Work Time (Formerly Step 2) */}
+        {state.currentStep === 2 && <Step3WorkTime />}
+        
+        {/* Step 4: Wage (Formerly Step 3) */}
+        {state.currentStep === 3 && <Step4Wage />}
+        
+        {/* Step 5: AI Review */}
+        {state.currentStep === 4 && <Typography>Step 5: AI Review (Coming Soon)</Typography>}
+        
+      </Paper>
     </Container>
   );
 }

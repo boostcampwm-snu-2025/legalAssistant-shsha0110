@@ -10,7 +10,7 @@ import { formatCurrency, parseCurrency } from '../../utils/formatUtils';
 // 2025 Minimum Wage in KRW
 const MIN_WAGE_2025 = 10030; 
 
-export default function Step3Wage() {
+export default function Step4Wage() {
     const { state, actions } = useContract();
     const { wage, jobCategory } = state.contract;
 

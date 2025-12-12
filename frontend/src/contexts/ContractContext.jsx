@@ -14,12 +14,16 @@ const INITIAL_STATE = {
         // Parties
         employerName: '',
         workerName: '',
+
+        // Basic Info
+        workplace: '',         
+        jobDescription: '',  
         
         // Dates
         startWorkDate: null,
         endWorkDate: null,
 
-        // Step 2: Time
+        // Step 3: Time
         workSchedule: {
         startTime: null,
         endTime: null,
@@ -28,7 +32,7 @@ const INITIAL_STATE = {
         workingDays: [], 
         },
 
-        // Step 3: Wage
+        // Step 4: Wage
         wage: {
         type: 'HOURLY',
         amount: '',

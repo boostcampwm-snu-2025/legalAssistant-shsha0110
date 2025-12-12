@@ -4,11 +4,11 @@ import {
 } from '@mui/material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import { useContract } from '../../contexts/ContractContext';
+import { useContract } from '../../contexts/ContractContext.jsx';
 import { calculateDurationMinutes, formatDuration, validateBreakTime } from '../../utils/timeUtils.js';
 import dayjs from 'dayjs';
 
-export default function Step2WorkTime() {
+export default function Step3WorkTime() {
     const { state, actions } = useContract();
     const { workSchedule } = state.contract;
 
