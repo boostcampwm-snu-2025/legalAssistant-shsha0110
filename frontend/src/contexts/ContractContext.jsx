@@ -1,59 +1,16 @@
-import React, { createContext, useReducer, useContext } from 'react';
+import React, { createContext, useReducer, useContext, useMemo } from 'react';
+import { INITIAL_CONTRACT_STATE } from '../constants/contractConstants';
 
-// --- 1. Initial State Definition ---
-// This serves as the single source of truth for the contract data.
-const INITIAL_STATE = {
-    // Navigation State
-    currentStep: 0, 
-
-    // Contract Data
-    contract: {
-        type: '', // 'STANDARD', 'PART_TIME', 'MINOR', etc.
-        jobCategory: 'OFFICE',
-        
-        // Parties
-        employerName: '',
-        workerName: '',
-
-        // Basic Info
-        workplace: '',         
-        jobDescription: '',  
-        
-        // Dates
-        startWorkDate: null,
-        endWorkDate: null,
-
-        // Step 3: Time
-        workSchedule: {
-        startTime: null,
-        endTime: null,
-        breakStartTime: null,
-        breakEndTime: null,
-        workingDays: [], 
-        },
-
-        // Step 4: Wage
-        wage: {
-        type: 'HOURLY',
-        amount: '',
-        hasBonus: false,
-        otherAllowances: [], 
-        },
-    }
-};
-
-// --- 2. Action Types ---
-// Define constants to prevent typos in dispatch
+// --- Action Types ---
 const ACTIONS = {
-    SET_FIELD: 'SET_FIELD',       // Update a simple top-level field
-    UPDATE_SECTION: 'UPDATE_SECTION', // Update a nested object (e.g., wage)
+    SET_FIELD: 'SET_FIELD',       
+    UPDATE_SECTION: 'UPDATE_SECTION', 
     NEXT_STEP: 'NEXT_STEP',
     PREV_STEP: 'PREV_STEP',
     RESET: 'RESET'
 };
 
-// --- 3. Reducer Function ---
-// Pure function that takes current state and action, returns new state
+// --- Reducer Function ---
 function contractReducer(state, action) {
     switch (action.type) {
         case ACTIONS.SET_FIELD:
@@ -66,7 +23,6 @@ function contractReducer(state, action) {
         };
 
         case ACTIONS.UPDATE_SECTION:
-        // Merges updates into a specific section (e.g., contract.wage)
         return {
             ...state,
             contract: {
@@ -85,41 +41,44 @@ function contractReducer(state, action) {
         return { ...state, currentStep: Math.max(0, state.currentStep - 1) };
 
         case ACTIONS.RESET:
-        return INITIAL_STATE;
+        return INITIAL_CONTRACT_STATE;
 
         default:
         throw new Error(`Unhandled action type: ${action.type}`);
     }
 }
 
-// --- 4. Context Creation ---
+// --- Context Creation ---
 const ContractContext = createContext();
 
-// --- 5. Provider Component ---
+// --- Provider Component ---
 export function ContractProvider({ children }) {
-    const [state, dispatch] = useReducer(contractReducer, INITIAL_STATE);
+    const [state, dispatch] = useReducer(contractReducer, INITIAL_CONTRACT_STATE);
 
-    // Helper functions to simplify dispatching in components
-    const updateContractSection = (section, payload) => {
-        dispatch({ type: ACTIONS.UPDATE_SECTION, section, payload });
-    };
+    // Memoize the context value to prevent unnecessary re-renders
+    const value = useMemo(() => {
+        const updateContractSection = (section, payload) => {
+            dispatch({ type: ACTIONS.UPDATE_SECTION, section, payload });
+        };
+    
+        const setContractField = (field, value) => {
+            dispatch({ type: ACTIONS.SET_FIELD, field, value });
+        };
+    
+        const nextStep = () => dispatch({ type: ACTIONS.NEXT_STEP });
+        const prevStep = () => dispatch({ type: ACTIONS.PREV_STEP });
 
-    const setContractField = (field, value) => {
-        dispatch({ type: ACTIONS.SET_FIELD, field, value });
-    };
-
-    const nextStep = () => dispatch({ type: ACTIONS.NEXT_STEP });
-    const prevStep = () => dispatch({ type: ACTIONS.PREV_STEP });
-
-    const value = {
-        state,
-        dispatch,
-        actions: { 
-            updateContractSection, 
-            setContractField, 
-            nextStep, prevStep 
-        }
-    };
+        return {
+            state,
+            dispatch,
+            actions: { 
+                updateContractSection, 
+                setContractField, 
+                nextStep, 
+                prevStep 
+            }
+        };
+    }, [state]); // Re-create only when state changes
 
     return (
         <ContractContext.Provider value={value}>
@@ -128,7 +87,7 @@ export function ContractProvider({ children }) {
     );
 }
 
-// --- 6. Custom Hook for easy access ---
+// --- Custom Hook ---
 export function useContract() {
   const context = useContext(ContractContext);
   if (!context) {
