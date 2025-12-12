@@ -4,6 +4,7 @@ import Step1TypeSelection from './components/steps/Step1TypeSelection';
 import Step2BasicInfo from './components/steps/Step2BasicInfo';
 import Step3WorkTime from './components/steps/Step3WorkTime';
 import Step4Wage from './components/steps/Step4Wage';
+import Step5Additional from './components/steps/Step5Additional';
 
 // A wrapper component to consume the context
 function MainContent() {
@@ -36,10 +37,13 @@ function MainContent() {
         
         {/* Step 4: Wage (Formerly Step 3) */}
         {state.currentStep === 3 && <Step4Wage />}
-        
-        {/* Step 5: AI Review */}
-        {state.currentStep === 4 && <Typography>Step 5: AI Review (Coming Soon)</Typography>}
-        
+
+        {/* Step 5: Additional Info - NEW */}
+        {state.currentStep === 4 && <Step5Additional />}
+
+        {/* Step 6: AI Review (Next Task) */}
+        {state.currentStep === 5 && <Typography>Step 6: AI Legal Review & PDF Generation</Typography>}
+
       </Paper>
     </Container>
   );
