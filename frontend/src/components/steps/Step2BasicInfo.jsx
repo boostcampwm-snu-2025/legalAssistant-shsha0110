@@ -1,74 +1,103 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
-  Grid, Typography, Box, TextField, Button, Alert, Chip, Stack 
+  Grid, Typography, Box, TextField, Button, Alert, Chip, CircularProgress, IconButton, Tooltip 
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 // Extend dayjs with duration plugin
 dayjs.extend(duration);
 
 // Import global state and utilities
 import { useContract } from '../../contexts/ContractContext';
+import { classifyJob } from '../../api/contractApi';
 
 export default function Step2BasicInfo() {
     const { state, actions } = useContract();
     const { contract } = state;
+    
+    // Local state for AI analysis loading
+    const [analyzing, setAnalyzing] = useState(false);
+    const [analysisResult, setAnalysisResult] = useState(null);
 
     // --- 1. Auto-set Default Start Date ---
     useEffect(() => {
-        // If Start Date is empty, set it to Today
         if (!contract.startWorkDate) {
         actions.setContractField('startWorkDate', dayjs());
         }
-    }, []); // Run only once on mount
+    }, []);
 
-    // --- 2. Determine Contract Type Logic ---
     const isIndefinite = contract.type === 'STANDARD';
 
-    // --- 3. Handlers ---
+    // --- 2. Handlers ---
 
     const handleChange = (field, value) => {
         actions.setContractField(field, value);
+        // Reset analysis result if user changes text manually
+        if (field === 'jobDescription') {
+        setAnalysisResult(null); 
+        }
     };
 
     const handleDateChange = (field, newValue) => {
         actions.setContractField(field, newValue);
     };
 
-    /**
-     * Helper to set End Date automatically based on duration
-     * @param {number} amount - Number of units (e.g., 3, 6, 1)
-     * @param {string} unit - 'month' or 'year'
-     */
     const handleDurationPreset = (amount, unit) => {
         if (!contract.startWorkDate) return;
-
-        // Calculate new end date: Start + Duration - 1 day
-        let newEndDate;
-        if (amount === 0) {
-            newEndDate = null
-        } else if (amount > 0) {
-            newEndDate = !!contract.endWorkDate? contract.endWorkDate.add(amount, unit).subtract(1, 'day') : contract.startWorkDate.add(amount, unit).subtract(1, 'day');
-        } else {
-            newEndDate = !!contract.endWorkDate? contract.endWorkDate.add(amount, unit).add(1, 'day') : contract.startWorkDate.add(amount, unit).add(1, 'day');
-        }
-        
+        const newEndDate = contract.startWorkDate.add(amount, unit).subtract(1, 'day');
         actions.setContractField('endWorkDate', newEndDate);
     };
 
-    // --- 4. Duration Calculation Helper ---
+    /**
+     * Handle AI Job Analysis
+     * Triggered by button click or onBlur
+     */
+    const handleAnalyzeJob = async () => {
+        // validation: Minimum length required
+        if (!contract.jobDescription || contract.jobDescription.length < 2) return;
+        // Prevent duplicate calls if result exists and text hasn't changed
+        if (analysisResult) return;
+
+        setAnalyzing(true);
+        try {
+        // Call API
+        const result = await classifyJob(contract.jobDescription);
+        
+        if (result.isSimpleLabor) {
+            // Case: Simple Labor (Restrictions apply)
+            actions.setContractField('jobCategory', 'SIMPLE_LABOR');
+            setAnalysisResult({
+            type: 'SIMPLE_LABOR',
+            message: `AI Classified as 'Simple Labor' (${result.categoryName}). Probation wage reduction will be disabled.`
+            });
+        } else {
+            // Case: Standard Office/Other
+            actions.setContractField('jobCategory', 'OFFICE');
+            setAnalysisResult({
+            type: 'OFFICE',
+            message: "AI Classified as 'Standard/Office Job'. No special restrictions."
+            });
+        }
+        } catch (error) {
+        console.error("Analysis failed", error);
+        } finally {
+        setAnalyzing(false);
+        }
+    };
+
+    // --- 3. Duration Calculation Helper ---
     const durationText = useMemo(() => {
         if (!contract.startWorkDate || !contract.endWorkDate) return null;
-        if (isIndefinite) return "기간의 정함이 없음 (Indefinite)";
+        if (isIndefinite) return "Period: Indefinite (기간의 정함이 없음)";
 
         const start = contract.startWorkDate;
         const end = contract.endWorkDate;
-
-        // Calculate difference
-        // Note: We add 1 day because contract period is inclusive (Start ~ End)
         const diffTime = end.diff(start) + (24 * 60 * 60 * 1000); 
+        
         if (diffTime < 0) return "Invalid Period (종료일이 시작일보다 빠릅니다)";
 
         const dur = dayjs.duration(diffTime);
@@ -76,13 +105,12 @@ export default function Step2BasicInfo() {
         const months = dur.months();
         const days = dur.days();
 
-        // Format: "X년 Y개월 Z일"
         const parts = [];
         if (years > 0) parts.push(`${years}년`);
         if (months > 0) parts.push(`${months}개월`);
         if (days > 0) parts.push(`${days}일`);
 
-        return parts.length > 0 ? `총 계약 기간: ${parts.join(' ')}` : "1일";
+        return parts.length > 0 ? `Total Period: ${parts.join(' ')}` : "1 Day";
     }, [contract.startWorkDate, contract.endWorkDate, isIndefinite]);
 
 
@@ -104,7 +132,7 @@ export default function Step2BasicInfo() {
 
         <Grid container spacing={3}>
             
-            {/* --- 1. Contract Period (근로계약기간) --- */}
+            {/* --- 1. Contract Period --- */}
             <Grid item xs={12}>
             <Typography variant="subtitle2" gutterBottom>
                 1. Contract Period (근로계약기간)
@@ -112,98 +140,114 @@ export default function Step2BasicInfo() {
             
             <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
                 <DatePicker
-                label="Start Date (부터)"
+                label="Start Date"
                 value={contract.startWorkDate}
                 onChange={(val) => handleDateChange('startWorkDate', val)}
-                slotProps={{ textField: { fullWidth: false, sx: { width: 180 } } }}
+                slotProps={{ textField: { size: 'small', sx: { width: 160 } } }}
                 />
-                
-                <Typography variant="body1">~</Typography>
-                
+                <Typography>~</Typography>
                 <DatePicker
-                label="End Date (까지)"
+                label="End Date"
                 value={contract.endWorkDate}
                 onChange={(val) => handleDateChange('endWorkDate', val)}
                 disabled={isIndefinite} 
+                slotProps={{ 
+                    textField: { 
+                    size: 'small',
+                    sx: { width: 160 },
+                    helperText: isIndefinite ? "Indefinite Contract" : ""
+                    } 
+                }}
                 />
             </Box>
 
-            {/* Preset Duration Buttons (Only for Fixed-Term/Part-Time) */}
             {!isIndefinite && (
                 <Box mt={1} display="flex" alignItems="center" gap={1}>
-                <Chip 
-                    label="- 1년" 
-                    onClick={() => handleDurationPreset(-1, 'year')} 
-                    color="primary" variant="outlined" clickable 
-                />
-                <Chip 
-                    label="- 1개월" 
-                    onClick={() => handleDurationPreset(-1, 'month')} 
-                    color="primary" variant="outlined" clickable 
-                />
-                <Chip 
-                    label="초기화" 
-                    onClick={() => handleDurationPreset(0, 'month')} 
-                    color="primary" variant="outlined" clickable 
-                />
-                <Chip 
-                    label="+ 1개월" 
-                    onClick={() => handleDurationPreset(1, 'month')} 
-                    color="primary" variant="outlined" clickable 
-                />
-                <Chip 
-                    label="+ 1년" 
-                    onClick={() => handleDurationPreset(1, 'year')} 
-                    color="primary" variant="outlined" clickable 
-                />
+                <Chip label="+ 3 Months" onClick={() => handleDurationPreset(3, 'month')} color="primary" variant="outlined" clickable size="small" />
+                <Chip label="+ 6 Months" onClick={() => handleDurationPreset(6, 'month')} color="primary" variant="outlined" clickable size="small" />
+                <Chip label="+ 1 Year" onClick={() => handleDurationPreset(1, 'year')} color="primary" variant="outlined" clickable size="small" />
                 </Box>
             )}
 
-            {/* Display Calculated Duration */}
             {durationText && (
-                <Alert severity="info" sx={{ mt: 2, py: 0 }}>
+                <Alert severity="info" sx={{ mt: 2, py: 0, alignItems: 'center' }}>
                 <strong>{durationText}</strong>
                 </Alert>
             )}
             </Grid>
 
-            {/* --- 2. Workplace (근무 장소) --- */}
+            {/* --- 2. Workplace --- */}
             <Grid item xs={12}>
             <Typography variant="subtitle2" gutterBottom>
                 2. Workplace (근무 장소)
             </Typography>
             <TextField
                 fullWidth
-                placeholder="예) GS25 강남점"
+                size="small"
+                placeholder="e.g., GS25 Gangnam Branch (GS25 강남점)"
                 value={contract.workplace}
                 onChange={(e) => handleChange('workplace', e.target.value)}
             />
             </Grid>
 
-            {/* --- 3. Job Description (업무의 내용) --- */}
+            {/* --- 3. Job Description with AI Check --- */}
             <Grid item xs={12}>
             <Typography variant="subtitle2" gutterBottom>
                 3. Job Description (업무의 내용)
             </Typography>
-            <TextField
+            
+            <Box display="flex" gap={1} alignItems="flex-start">
+                <TextField
                 fullWidth
                 multiline
                 rows={2}
-                placeholder="예) 고객 응대, 매장 청소, 재고 관리"
+                placeholder="e.g., Cleaning the store, stocking shelves, washing dishes (매장 청소, 진열, 설거지)"
                 value={contract.jobDescription}
                 onChange={(e) => handleChange('jobDescription', e.target.value)}
-            />
-            <Alert severity="warning" sx={{ mt: 1, fontSize: '0.85rem' }}>
-                Tip: 구체적으로 적을수록 분쟁을 예방할 수 있습니다.
-            </Alert>
+                // Trigger analysis when user leaves the field
+                onBlur={handleAnalyzeJob}
+                helperText="Tip: Specific descriptions help AI protect your rights."
+                />
+                
+                {/* AI Analysis Button */}
+                <Tooltip title="AI Check for Simple Labor Classification">
+                <Button 
+                    variant="contained" 
+                    color="secondary" 
+                    sx={{ height: '56px', minWidth: '80px', borderRadius: 2 }}
+                    onClick={handleAnalyzeJob}
+                    disabled={analyzing || !contract.jobDescription}
+                >
+                    {analyzing ? <CircularProgress size={24} color="inherit" /> : (
+                    <Box display="flex" flexDirection="column" alignItems="center">
+                        <AutoAwesomeIcon fontSize="small" />
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', mt: 0.5 }}>AI Check</Typography>
+                    </Box>
+                    )}
+                </Button>
+                </Tooltip>
+            </Box>
+            
+            {/* Analysis Result Feedback */}
+            {analysisResult && (
+                <Alert 
+                severity={analysisResult.type === 'SIMPLE_LABOR' ? 'warning' : 'success'} 
+                icon={analysisResult.type === 'SIMPLE_LABOR' ? <AutoAwesomeIcon /> : <CheckCircleIcon />}
+                sx={{ mt: 1 }}
+                >
+                <Typography variant="body2" fontWeight="bold">
+                    {analysisResult.message}
+                </Typography>
+                </Alert>
+            )}
             </Grid>
 
         </Grid>
 
-        {/* --- Navigation Buttons --- */}
+        {/* --- Navigation --- */}
         <Box mt={4} display="flex" justifyContent="space-between">
             <Button variant="outlined" onClick={actions.prevStep}>
-            Back (Type Selection)
+            Back
             </Button>
             <Button 
             variant="contained" 

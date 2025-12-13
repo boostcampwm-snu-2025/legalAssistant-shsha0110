@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SIMPLE_LABOR_GUIDE } from './data/simpleLaborData.js'; 
+
 
 // Load environment variables
 dotenv.config();
@@ -123,6 +125,54 @@ app.post('/api/chat', async (req, res) => {
   } catch (error) {
     console.error('[Server] Chat Error:', error);
     res.status(500).json({ error: "Chat processing failed" });
+  }
+});
+
+/**
+ * 3. Job Classification Endpoint
+ */
+app.post('/api/classify-job', async (req, res) => {
+  try {
+    const { jobDescription } = req.body;
+    console.log('[Server] Classifying Job:', jobDescription);
+
+    // 1. Construct the prompt using the Imported Data
+    const prompt = `
+      You are an expert in the Korean Standard Classification of Occupations (KSCO).
+      
+      **Task:**
+      Determine if the user's "Job Description" falls under the category of "Elementary Workers" (단순노무종사자 - KSCO Code 9) based on the provided guide.
+      
+      **Reference Guide (Simple Labor List):**
+      ${SIMPLE_LABOR_GUIDE}
+
+      **User's Job Description:** "${jobDescription}"
+
+      **Analysis Rules:**
+      1. If the job matches any category in the guide (e.g., convenience store staff matches 'Store Attendants' or 'Sales Related Elementary'), set "isSimpleLabor" to true.
+      2. If the job involves specialized skills, decision making, or is clearly OFFICE work (e.g., Programmer, Designer, Manager, Clerk), set "isSimpleLabor" to false.
+      3. Be conservative. If unsure, lean towards 'false' unless it strictly matches manual/simple labor tasks.
+
+      **Output JSON Format:**
+      {
+        "isSimpleLabor": boolean,
+        "categoryName": "String (The matching category name from the guide, e.g., '9522 주방 보조원'. If not matched, null)",
+        "reason": "String (A short explanation in Korean why it was classified this way)"
+      }
+    `;
+
+    // 2. Call Gemini
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    const classification = JSON.parse(text);
+
+    console.log('[Server] Classification Result:', classification);
+    res.status(200).json(classification);
+
+  } catch (error) {
+    console.error('[Server] Classification Error:', error);
+    res.status(500).json({ error: "Job classification failed" });
   }
 });
 

@@ -47,3 +47,13 @@ export const sendChat = async (message, contextData) => {
         context: contextData 
     });
 };
+
+/**
+ * Classify Job Description
+ * Calls the backend to determine if the job is 'Simple Labor'.
+ * @param {string} jobDescription 
+ * @returns {Promise<object>} { isSimpleLabor, categoryName, reason }
+ */
+export const classifyJob = async (jobDescription) => {
+    return await postRequest('/api/classify-job', { jobDescription });
+};

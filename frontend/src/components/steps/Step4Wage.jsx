@@ -1,230 +1,280 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { 
-  Grid, Typography, Box, TextField, MenuItem, 
-  InputAdornment, FormControlLabel, Switch, Button 
+  Grid, Typography, Box, TextField, Button, InputAdornment, 
+  FormControl, InputLabel, Select, MenuItem, FormControlLabel, 
+  Switch, Alert, Chip, Divider, Paper 
 } from '@mui/material';
-import { useContract } from '../../contexts/ContractContext';
-import { formatCurrency, parseCurrency } from '../../utils/formatUtils';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import PaidIcon from '@mui/icons-material/Paid';
+import WarningIcon from '@mui/icons-material/Warning';
+import CalculateIcon from '@mui/icons-material/Calculate';
+import dayjs from 'dayjs';
 
-// Constants for validation
-// 2025 Minimum Wage in KRW
-const MIN_WAGE_2025 = 10030; 
+import { useContract } from '../../contexts/ContractContext';
+import { formatCurrency } from '../../utils/formatUtils'; // Assuming you have this helper
+
+// 2025 Minimum Wage Constant
+const MINIMUM_WAGE = 10030;
 
 export default function Step4Wage() {
     const { state, actions } = useContract();
-    const { wage, jobCategory } = state.contract;
+    const { wage, startWorkDate, endWorkDate, jobCategory } = state.contract;
 
-    // --- 1. Event Handlers ---
-
-    /**
-     * Handles changes for currency input fields.
-     * Parses the comma-separated string back to a raw number before saving.
-     */
-    const handleAmountChange = (e) => {
-        const rawValue = parseCurrency(e.target.value);
-        
-        // If input is not a number (e.g., empty), set it to empty string
-        if (isNaN(rawValue)) {
-            actions.updateContractSection('wage', { amount: '' });
-            return;
+    // --- 1. Auto-set Default Wage (Minimum Wage) ---
+    useEffect(() => {
+        // If amount is empty, set default to Minimum Wage
+        if (!wage.amount) {
+        actions.updateContractSection('wage', { amount: MINIMUM_WAGE });
         }
-        actions.updateContractSection('wage', { amount: rawValue });
-    };
+    }, []); // Run once on mount
 
-    /**
-     * Handles generic changes for wage fields.
-     */
-    const handleChange = (field, value) => {
+    // --- 2. Handlers ---
+
+    const handleWageChange = (field, value) => {
         actions.updateContractSection('wage', { [field]: value });
     };
 
-    /**
-     * Handles changes for the Job Category (Top-level field).
-     * This affects the probation logic.
-     */
-    const handleJobChange = (e) => {
-        actions.setContractField('jobCategory', e.target.value);
+    const handleProbationToggle = (event) => {
+        const isChecked = event.target.checked;
+        
+        if (isChecked) {
+        // When turning ON: Set default probation end date to (Start + 3 months - 1 day)
+        const defaultProbationEnd = startWorkDate 
+            ? dayjs(startWorkDate).add(3, 'month').subtract(1, 'day') 
+            : null;
+            
+        actions.updateContractSection('wage', { 
+            hasProbation: true,
+            probationEndDate: defaultProbationEnd,
+            probationWagePercent: 90 
+        });
+        } else {
+        // When turning OFF
+        actions.updateContractSection('wage', { 
+            hasProbation: false,
+            probationEndDate: null,
+            probationWagePercent: 100 
+        });
+        }
     };
 
-    // --- 2. Validation & Logic ---
+    // --- 3. Calculations & Logic ---
 
-    /**
-     * Checks if the entered wage is below the legal minimum.
-     * Only checks if the wage type is 'HOURLY'.
-     */
-    const isWageLow = useMemo(() => {
-        if (!wage.amount) return false;
-        if (wage.type === 'HOURLY' && wage.amount < MIN_WAGE_2025) {
-            return true;
+    // Check legality of probation reduction (Scenario 2)
+    const probationRestriction = useMemo(() => {
+        // 1. Check Job Category (Simple Labor cannot have wage reduction)
+        if (jobCategory === 'SIMPLE_LABOR') {
+        return { 
+            isRestricted: true, 
+            reason: "🚫 Wage reduction is NOT allowed for Simple Labor jobs (e.g., Convenience Store, Delivery). (Minimum Wage Act Art. 5)" 
+        };
         }
-        return false;
-    }, [wage.amount, wage.type]);
 
-    /**
-     * Logic for Probation Period Restriction (Scenario 5).
-     * Blocks 90% payment if:
-     * 1. Job is 'SIMPLE_LABOR' (Simple Labor) OR
-     * 2. Contract term is short (Fixed Term / Part Time) - Simplified logic
-     */
-    const isProbationRestricted = useMemo(() => {
-        const isSimpleLabor = jobCategory === 'SIMPLE_LABOR';
-        const isShortTerm = state.contract.type === 'FIXED_TERM' || state.contract.type === 'PART_TIME';
-        
-        return isSimpleLabor || isShortTerm;
-    }, [jobCategory, state.contract.type]);
-
-    /**
-     * Handles the toggle switch for Probation.
-     * Alerts the user if they try to enable probation for restricted jobs.
-     */
-    const handleProbationChange = (e) => {
-        const isChecked = e.target.checked;
-        
-        // If user tries to check 'Probation' but it's restricted, we can show a warning
-        // However, usually having probation itself is legal, but wage reduction (90%) is restricted.
-        // Here we just toggle the flag. The restriction applies to the 90% option below.
-        actions.updateContractSection('wage', { hasProbation: isChecked });
-        
-        // If restricted, force wage percent to 100% just in case
-        if (isChecked && isProbationRestricted) {
-        actions.updateContractSection('wage', { probationWagePercent: 100 });
+        // 2. Check Contract Duration (Must be >= 1 year)
+        if (startWorkDate && endWorkDate) {
+        const durationYears = dayjs(endWorkDate).diff(dayjs(startWorkDate), 'year', true);
+        if (durationYears < 1) {
+            return { 
+            isRestricted: true, 
+            reason: "🚫 Wage reduction is ONLY allowed for contracts of 1 year or longer." 
+            };
         }
+        }
+
+        return { isRestricted: false, reason: null };
+    }, [jobCategory, startWorkDate, endWorkDate]);
+
+    // Force disable probation if restricted
+    useEffect(() => {
+        if (probationRestriction.isRestricted && wage.hasProbation) {
+        actions.updateContractSection('wage', { hasProbation: false });
+        }
+    }, [probationRestriction, wage.hasProbation]);
+
+    // Calculate wages
+    const baseAmount = Number(wage.amount) || 0;
+    const isBelowMinWage = baseAmount < MINIMUM_WAGE;
+    
+    // Probation Wage Calculation (90%)
+    const probationAmount = Math.floor(baseAmount * 0.9);
+    const probationAmountFormatted = formatCurrency(probationAmount);
+
+    // Max Date for Probation (Max 3 months from start)
+    const maxProbationDate = startWorkDate ? dayjs(startWorkDate).add(3, 'month').subtract(1, 'day') : null;
+
+
+    // Validation for Next Button
+    const isValid = () => {
+        return baseAmount >= MINIMUM_WAGE; // Must meet minimum wage
     };
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-                Wage & Allowances (임금 및 수당 설정)
+        <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+            Wage & Benefits (임금 및 복리후생)
+        </Typography>
+
+        <Grid container spacing={3}>
+            
+            {/* --- 1. Wage Type & Amount --- */}
+            <Grid item xs={12} md={6}>
+            <Typography variant="subtitle2" gutterBottom>
+                Wage Type (임금 유형)
             </Typography>
-
-            <Grid container spacing={3}>
-                
-                {/* --- Section A: Job Category (Affects Logic) --- */}
-                <Grid item xs={12}>
-                    <Box p={2} mb={1} bgcolor="#f9f9f9" borderRadius={2} border="1px dashed #ccc">
-                        <Typography variant="caption" color="text.secondary">
-                        * Setup for Validation Logic (Job Category affects probation rules)
-                        </Typography>
-                        <TextField
-                        select
-                        fullWidth
-                        size="small"
-                        label="Job Category (직종)"
-                        value={jobCategory}
-                        onChange={handleJobChange}
-                        sx={{ mt: 1 }}
-                        >
-                        <MenuItem value="OFFICE">Office (사무직)</MenuItem>
-                        <MenuItem value="SERVICE">Service (서비스직)</MenuItem>
-                        <MenuItem value="SIMPLE_LABOR">Simple Labor (단순노무직 - 편의점 등)</MenuItem>
-                        </TextField>
-                    </Box>
-                </Grid>
-
-                {/* --- Section B: Wage Details --- */}
-                <Grid item xs={12} sm={4}>
-                    <TextField
-                        select
-                        fullWidth
-                        label="Wage Type"
-                        value={wage.type}
-                        onChange={(e) => handleChange('type', e.target.value)}
-                    >
-                        <MenuItem value="HOURLY">Hourly (시급)</MenuItem>
-                        <MenuItem value="MONTHLY">Monthly (월급)</MenuItem>
-                        <MenuItem value="DAILY">Daily (일급)</MenuItem>
-                    </TextField>
-                </Grid>
-
-                <Grid item xs={12} sm={8}>
-                    <TextField
-                        fullWidth
-                        label="Amount (KRW)"
-                        value={formatCurrency(wage.amount)} // Display formatted value
-                        onChange={handleAmountChange}
-                        InputProps={{
-                            startAdornment: <InputAdornment position="start">₩</InputAdornment>,
-                        }}
-                        error={isWageLow}
-                        helperText={isWageLow ? `Below Minimum Wage (Min: ${formatCurrency(MIN_WAGE_2025)})` : ''}
-                    />
-                </Grid>
-
-                {/* --- Section C: Payment Details --- */}
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        label="Payment Date (지급일)"
-                        placeholder="e.g., 25th of every month"
-                        value={wage.paymentDate}
-                        onChange={(e) => handleChange('paymentDate', e.target.value)}
-                    />
-                </Grid>
-
-                {/* --- Section D: Probation Period  --- */}
-                <Grid item xs={12}>
-                    <Box 
-                        p={2} 
-                        borderRadius={2}
-                        bgcolor={wage.hasProbation ? '#e3f2fd' : '#f5f5f5'} 
-                        border={wage.hasProbation ? '1px solid #2196f3' : '1px solid #ddd'}
-                    >
-                        <FormControlLabel
-                            control={
-                            <Switch 
-                                checked={wage.hasProbation}
-                                onChange={handleProbationChange}
-                            />
-                            }
-                            label="Apply Probation Period (수습기간 적용)"
-                        />
-
-                        {/* Conditional Rendering: Show details only if enabled */}
-                        {wage.hasProbation && (
-                            <Box mt={2} display="flex" flexDirection="column" gap={2}>
-                                <Box display="flex" alignItems="center" gap={2}>
-                                    <Typography variant="body2">Pay during probation:</Typography>
-                                    <TextField 
-                                    select 
-                                    size="small" 
-                                    value={wage.probationWagePercent}
-                                    onChange={(e) => handleChange('probationWagePercent', e.target.value)}
-                                    sx={{ width: 200 }}
-                                    >
-                                        <MenuItem value={100}>100% of Wage</MenuItem>
-                                        {/* Disable 90% option if restricted */}
-                                        <MenuItem value={90} disabled={isProbationRestricted}>
-                                            90% of Wage {isProbationRestricted && '(Restricted)'}
-                                        </MenuItem>
-                                    </TextField>
-                                </Box>
-                            
-                            {isProbationRestricted && (
-                                <Typography variant="caption" color="error">
-                                * 90% payment is not allowed for Simple Labor or contracts under 1 year.
-                                </Typography>
-                            )}
-                            </Box>
-                        )}
-                    </Box>
-                </Grid>
-
+            <FormControl fullWidth size="small">
+                <Select
+                value={wage.type}
+                onChange={(e) => handleWageChange('type', e.target.value)}
+                >
+                <MenuItem value="HOURLY">Hourly (시급)</MenuItem>
+                <MenuItem value="MONTHLY">Monthly (월급)</MenuItem>
+                <MenuItem value="DAILY">Daily (일급)</MenuItem>
+                </Select>
+            </FormControl>
             </Grid>
 
-            {/* --- Navigation Buttons --- */}
-            <Box mt={4} display="flex" justifyContent="space-between">
-                <Button variant="outlined" onClick={actions.prevStep}>
-                Back
-                </Button>
-                <Button 
-                variant="contained" 
-                onClick={actions.nextStep}
-                // Disable next if wage amount is empty or illegal
-                disabled={!wage.amount || isWageLow}
-                >
-                Next Step (Review)
-                </Button>
+            <Grid item xs={12} md={6}>
+            <Typography variant="subtitle2" gutterBottom>
+                Amount (금액)
+            </Typography>
+            <TextField
+                fullWidth
+                size="small"
+                type="number"
+                value={wage.amount}
+                onChange={(e) => handleWageChange('amount', e.target.value)}
+                InputProps={{
+                endAdornment: <InputAdornment position="end">KRW</InputAdornment>,
+                }}
+                error={isBelowMinWage}
+                helperText={isBelowMinWage ? `Must be at least ${formatCurrency(MINIMUM_WAGE)} KRW` : "Default: 2025 Minimum Wage"}
+            />
+            </Grid>
+
+            {/* --- 2. Probation Period Settings (Key Feature) --- */}
+            <Grid item xs={12}>
+            <Divider sx={{ my: 2 }} />
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                <Typography variant="subtitle1" fontWeight="bold">
+                    Probation Period (수습기간 설정)
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                    Apply 90% wage during probation (Max 3 months).
+                </Typography>
+                </Box>
+                <FormControlLabel
+                control={
+                    <Switch 
+                    checked={wage.hasProbation} 
+                    onChange={handleProbationToggle} 
+                    color="primary"
+                    disabled={probationRestriction.isRestricted} // Block if illegal
+                    />
+                }
+                label={wage.hasProbation ? "Active" : "None"}
+                />
             </Box>
+
+            {/* Warning if Probation is Restricted (Scenario 2) */}
+            {probationRestriction.isRestricted && (
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                {probationRestriction.reason}
+                </Alert>
+            )}
+
+            {/* Probation Details Panel (Visible only when Active) */}
+            {wage.hasProbation && (
+                <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#f8f9fa' }}>
+                <Grid container spacing={2}>
+                    
+                    {/* A. Probation Duration (Max 3 Months) */}
+                    <Grid item xs={12} md={6}>
+                    <Typography variant="body2" gutterBottom fontWeight="bold">
+                        Probation End Date (수습 종료일)
+                    </Typography>
+                    <DatePicker
+                        value={wage.probationEndDate}
+                        onChange={(val) => handleWageChange('probationEndDate', val)}
+                        minDate={startWorkDate}
+                        maxDate={maxProbationDate} // Constraint: Max 3 months
+                        slotProps={{ 
+                        textField: { 
+                            fullWidth: true, 
+                            size: 'small',
+                            helperText: "Max 3 months allowed by law."
+                        } 
+                        }}
+                    />
+                    </Grid>
+
+                    {/* B. Calculated Wage Display */}
+                    <Grid item xs={12} md={6}>
+                    <Box height="100%" display="flex" flexDirection="column" justifyContent="center">
+                        <Typography variant="body2" gutterBottom fontWeight="bold" display="flex" alignItems="center">
+                        <CalculateIcon fontSize="small" sx={{ mr: 0.5 }} /> 
+                        Actual Wage during Probation
+                        </Typography>
+                        <Box 
+                        bgcolor="#fff" p={1.5} borderRadius={1} border="1px dashed #ccc"
+                        display="flex" justifyContent="space-between" alignItems="center"
+                        >
+                        <Typography variant="body2" color="text.secondary">
+                            90% of {formatCurrency(baseAmount)}
+                        </Typography>
+                        <Typography variant="h6" color="primary.main" fontWeight="bold">
+                            {probationAmountFormatted} KRW
+                        </Typography>
+                        </Box>
+                    </Box>
+                    </Grid>
+
+                    {/* C. Legal Notice */}
+                    <Grid item xs={12}>
+                    <Alert severity="info" icon={<PaidIcon />}>
+                        During this period ({dayjs(startWorkDate).format('YYYY-MM-DD')} ~ {dayjs(wage.probationEndDate).format('YYYY-MM-DD')}), 
+                        <strong> 90% of the wage</strong> will be paid. After this date, 100% will be paid automatically.
+                    </Alert>
+                    </Grid>
+
+                </Grid>
+                </Paper>
+            )}
+            </Grid>
+
+            {/* --- 3. Payment Day & Method (Standard) --- */}
+            <Grid item xs={12} md={6}>
+            <Typography variant="subtitle2" gutterBottom>Payment Day (임금 지급일)</Typography>
+            <TextField 
+                fullWidth size="small" placeholder="e.g., 10th of every month" 
+                value={wage.paymentDate || ''}
+                onChange={(e) => handleWageChange('paymentDate', e.target.value)}
+            />
+            </Grid>
+            <Grid item xs={12} md={6}>
+            <Typography variant="subtitle2" gutterBottom>Payment Method (지급 방법)</Typography>
+            <TextField 
+                fullWidth size="small" placeholder="e.g., Bank Transfer to Employee's Account" 
+                value={wage.paymentMethod || ''}
+                onChange={(e) => handleWageChange('paymentMethod', e.target.value)}
+            />
+            </Grid>
+
+        </Grid>
+
+        {/* --- Navigation --- */}
+        <Box mt={4} display="flex" justifyContent="space-between">
+            <Button variant="outlined" onClick={actions.prevStep}>
+            Back (Work Time)
+            </Button>
+            <Button 
+            variant="contained" 
+            onClick={actions.nextStep}
+            disabled={!isValid()}
+            >
+            Next Step (Additional Info)
+            </Button>
+        </Box>
         </Box>
     );
 }
