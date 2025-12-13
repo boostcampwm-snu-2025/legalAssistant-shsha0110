@@ -1,106 +1,149 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-// MUI Imports
-import { Container, Paper, Typography, Button, Box, Chip, CircularProgress } from '@mui/material';
-import DescriptionIcon from '@mui/icons-material/Description';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
+import React, { useState } from 'react';
+import { 
+  Container, Typography, Box, Paper, Fab, Tooltip, 
+  Dialog, DialogContent, DialogActions, Button, IconButton,
+  Stepper, Step, StepLabel, Chip
+} from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility'; 
+import CloseIcon from '@mui/icons-material/Close';
+import SecurityIcon from '@mui/icons-material/Security'; // Protection Icon
 
-function App() {
-  // State to track backend connection status
-  const [serverStatus, setServerStatus] = useState('checking'); // 'checking' | 'connected' | 'error'
+// Context
+import { ContractProvider, useContract } from './contexts/ContractContext';
 
-  /**
-   * Check connection to the backend server on component mount.
-   */
-  useEffect(() => {
-    const checkServerConnection = async () => {
-      try {
-        // Attempt to reach the backend health check endpoint
-        const response = await axios.get('http://localhost:3000/');
-        console.log('Backend response:', response.data);
-        setServerStatus('connected');
-      } catch (error) {
-        console.error('Failed to connect to backend:', error);
-        setServerStatus('error');
-      }
-    };
+// Steps Components
+import Step1TypeSelection from './components/steps/Step1TypeSelection';
+import Step2BasicInfo from './components/steps/Step2BasicInfo';
+import Step3WorkTime from './components/steps/Step3WorkTime';
+import Step4Wage from './components/steps/Step4Wage';
+import Step5Additional from './components/steps/Step5Additional';
+import Step6Review from './components/steps/Step6Review';
 
-    checkServerConnection();
-  }, []);
+// Preview Component
+import ContractPreview from './components/common/ContractPreview';
 
-  /**
-   * Handler for the "Start" button.
-   */
-  const handleStart = () => {
-    // TODO: Navigate to Step 1 (Contract Type Selection)
-    alert('Navigation to Step 1 will be implemented here.');
-  };
+// --- Define Step Labels ---
+const STEPS = [
+  '유형 선택',   // Type Selection
+  '기본 정보',   // Basic Info
+  '근로 시간',   // Work Time
+  '임금 설정',   // Wage
+  '기타/보험',   // Additional
+  'AI 검토'      // Review
+];
+
+function MainContent() {
+  const { state } = useContract();
+  
+  // State for Preview Modal
+  const [openPreview, setOpenPreview] = useState(false);
+
+  // Show Preview Button after Step 1
+  const showPreviewButton = state.currentStep > 0;
+
+  // Check if Minor Protection Mode is active
+  const isMinor = state.contract.type === 'MINOR';
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-        {/* --- Header Section --- */}
-        <Box display="flex" alignItems="center" mb={2}>
-          <DescriptionIcon color="primary" sx={{ fontSize: 40, mr: 1 }} />
-          <Typography variant="h5" component="h1" fontWeight="bold">
-            표준근로계약서 (Standard Labor Contract)
-          </Typography>
-        </Box>
-        
-        <Typography variant="body1" color="text.secondary" paragraph>
-          This is the starting point of the project. 
-          The UI uses Material UI, and the logic is connected to a Node.js backend.
+    <Container maxWidth="md" sx={{ mt: 4, mb: 8 }}>
+      
+      {/* --- Header Area --- */}
+      <Box mb={4} textAlign="center">
+        <Typography variant="h4" component="h1" fontWeight="bold" color="primary" gutterBottom>
+          표준근로계약서 작성 도우미
         </Typography>
-
-        {/* --- Server Status Indicator --- */}
-        <Box mb={4} display="flex" alignItems="center" gap={1}>
-          <Typography variant="body2" fontWeight="medium">
-            Server Status:
-          </Typography>
-          
-          {serverStatus === 'checking' && (
+        
+        {/* [NEW] Minor Protection Badge (Global Status) */}
+        {isMinor && (
+          <Box mb={2}>
             <Chip 
-              icon={<CircularProgress size={16} />} 
-              label="Checking..." 
-              variant="outlined" 
-            />
-          )}
-          
-          {serverStatus === 'connected' && (
-            <Chip 
-              icon={<CheckCircleIcon />} 
-              label="Online" 
+              icon={<SecurityIcon />} 
+              label="연소자(18세 미만) 안심 보호 모드 작동 중" 
               color="success" 
               variant="outlined" 
+              sx={{ fontWeight: 'bold', bgcolor: '#e8f5e9' }}
             />
-          )}
+          </Box>
+        )}
 
-          {serverStatus === 'error' && (
-            <Chip 
-              icon={<ErrorIcon />} 
-              label="Offline" 
-              color="error" 
-              variant="outlined" 
-            />
-          )}
+        {/* [NEW] Visual Stepper */}
+        <Stepper activeStep={state.currentStep} alternativeLabel>
+          {STEPS.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
+
+      {/* --- Main Form Content --- */}
+      <Box>
+        <Paper elevation={0} sx={{ p: { xs: 2, md: 4 }, border: '1px solid #e0e0e0', borderRadius: 2 }}>
+            {state.currentStep === 0 && <Step1TypeSelection />}
+            {state.currentStep === 1 && <Step2BasicInfo />}
+            {state.currentStep === 2 && <Step3WorkTime />}
+            {state.currentStep === 3 && <Step4Wage />}
+            {state.currentStep === 4 && <Step5Additional />}
+            {state.currentStep === 5 && <Step6Review />}
+        </Paper>
+      </Box>
+
+      {/* --- Floating Preview Button --- */}
+      {showPreviewButton && (
+        <Tooltip title="계약서 미리보기">
+          <Fab 
+            color="primary" 
+            aria-label="preview"
+            sx={{ 
+              position: 'fixed', 
+              bottom: 32, 
+              right: 32, 
+              zIndex: 1000 
+            }}
+            onClick={() => setOpenPreview(true)}
+          >
+            <VisibilityIcon />
+          </Fab>
+        </Tooltip>
+      )}
+
+      {/* --- Preview Modal --- */}
+      <Dialog 
+        open={openPreview} 
+        onClose={() => setOpenPreview(false)}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+      >
+        <Box display="flex" justifyContent="space-between" alignItems="center" p={2} borderBottom="1px solid #eee">
+          <Typography variant="h6" fontWeight="bold">
+            📄 계약서 미리보기
+          </Typography>
+          <IconButton onClick={() => setOpenPreview(false)}>
+            <CloseIcon />
+          </IconButton>
         </Box>
 
-        {/* --- Action Area --- */}
-        <Box>
-           <Button 
-             variant="contained" 
-             color="primary" 
-             fullWidth 
-             size="large" 
-             onClick={handleStart}
-             disabled={serverStatus === 'checking'}
-           >
-             계약서 작성 시작하기 (Start)
-           </Button>
-        </Box>
-      </Paper>
+        <DialogContent dividers sx={{ bgcolor: '#f5f5f5', p: 4 }}>
+          <ContractPreview />
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setOpenPreview(false)} variant="contained" color="primary">
+            Close Preview
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Container>
+  );
+}
+
+function App() {
+  return (
+    <ContractProvider>
+      <MainContent />
+    </ContractProvider>
   );
 }
 
