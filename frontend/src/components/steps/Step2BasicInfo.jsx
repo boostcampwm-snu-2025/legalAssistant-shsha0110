@@ -54,32 +54,46 @@ export default function Step2BasicInfo() {
 
     /**
      * Handle AI Job Analysis
-     * Triggered by button click or onBlur
+     * Triggered by button click or onBlur event.
+     * Calls the backend API to classify the job description.
      */
     const handleAnalyzeJob = async () => {
-        // validation: Minimum length required
+        // Validation: Minimum length required to perform analysis
         if (!contract.jobDescription || contract.jobDescription.length < 2) return;
-        // Prevent duplicate calls if result exists and text hasn't changed
+
+        // Optimization: Prevent duplicate API calls if result exists and text hasn't changed
         if (analysisResult) return;
 
         setAnalyzing(true);
         try {
-        // Call API
+        // Call the Job Classification API
         const result = await classifyJob(contract.jobDescription);
         
         if (result.isSimpleLabor) {
-            // Case: Simple Labor (Restrictions apply)
+            // Case 1: Classified as Simple Labor (Restrictions apply)
+            
+            // 1. Update Job Category flag
             actions.setContractField('jobCategory', 'SIMPLE_LABOR');
+            
+            // 2. Store specific job title for detailed feedback in Step 4
+            // (e.g., "9522 Kitchen Helper" or fallback to "Elementary Worker")
+            const reasonDetail = result.categoryName || "Elementary Worker";
+            actions.setContractField('jobCategoryReason', reasonDetail);
+
+            // 3. Update local UI state for immediate feedback
             setAnalysisResult({
             type: 'SIMPLE_LABOR',
-            message: `AI Classified as 'Simple Labor' (${result.categoryName}). Probation wage reduction will be disabled.`
+            message: `AI Analysis: Classified as '${reasonDetail}' (Simple Labor). Wage reduction during probation is disabled.`
             });
         } else {
-            // Case: Standard Office/Other
+            // Case 2: Standard/Office Job (No restrictions)
+            
             actions.setContractField('jobCategory', 'OFFICE');
+            actions.setContractField('jobCategoryReason', ''); // Reset reason field
+
             setAnalysisResult({
             type: 'OFFICE',
-            message: "AI Classified as 'Standard/Office Job'. No special restrictions."
+            message: "AI Analysis: Classified as 'Standard/Office Job'. No special restrictions."
             });
         }
         } catch (error) {
@@ -88,7 +102,7 @@ export default function Step2BasicInfo() {
         setAnalyzing(false);
         }
     };
-
+    
     // --- 3. Duration Calculation Helper ---
     const durationText = useMemo(() => {
         if (!contract.startWorkDate || !contract.endWorkDate) return null;

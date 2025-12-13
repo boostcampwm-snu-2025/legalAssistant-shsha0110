@@ -18,7 +18,7 @@ const MINIMUM_WAGE = 10030;
 
 export default function Step4Wage() {
     const { state, actions } = useContract();
-    const { wage, startWorkDate, endWorkDate, jobCategory } = state.contract;
+    const { wage, startWorkDate, endWorkDate, jobCategory, jobCategoryReason } = state.contract;
 
     // --- 1. Auto-set Default Wage (Minimum Wage) ---
     useEffect(() => {
@@ -60,13 +60,19 @@ export default function Step4Wage() {
 
     // --- 3. Calculations & Logic ---
 
-    // Check legality of probation reduction (Scenario 2)
+    // Check legality of probation wage reduction (Scenario 2)
     const probationRestriction = useMemo(() => {
         // 1. Check Job Category (Simple Labor cannot have wage reduction)
         if (jobCategory === 'SIMPLE_LABOR') {
+        // [MODIFIED] Dynamic Reason Generation (Korean Message)
+        // Use the specific job title from AI if available
+        const detailText = jobCategoryReason 
+            ? `입력하신 업무는 단순노무직군인 [${jobCategoryReason}]에 해당합니다.` 
+            : "입력하신 업무는 단순노무직(편의점, 배달, 청소 등)에 해당합니다.";
+
         return { 
             isRestricted: true, 
-            reason: "🚫 Wage reduction is NOT allowed for Simple Labor jobs (e.g., Convenience Store, Delivery). (Minimum Wage Act Art. 5)" 
+            reason: `🚫 감액 불가: ${detailText} 고용노동부 장관이 고시한 단순노무직종은 수습 기간에도 최저임금 100%를 지급해야 합니다. (최저임금법 제5조)` 
         };
         }
 
@@ -76,14 +82,14 @@ export default function Step4Wage() {
         if (durationYears < 1) {
             return { 
             isRestricted: true, 
-            reason: "🚫 Wage reduction is ONLY allowed for contracts of 1 year or longer." 
+            reason: "🚫 감액 불가: 근로계약 기간이 1년 미만인 경우, 수습 기간이라도 임금을 감액할 수 없습니다." 
             };
         }
         }
 
         return { isRestricted: false, reason: null };
-    }, [jobCategory, startWorkDate, endWorkDate]);
-
+    }, [jobCategory, jobCategoryReason, startWorkDate, endWorkDate]);
+    
     // Force disable probation if restricted
     useEffect(() => {
         if (probationRestriction.isRestricted && wage.hasProbation) {
@@ -147,7 +153,7 @@ export default function Step4Wage() {
                 endAdornment: <InputAdornment position="end">KRW</InputAdornment>,
                 }}
                 error={isBelowMinWage}
-                helperText={isBelowMinWage ? `Must be at least ${formatCurrency(MINIMUM_WAGE)} KRW` : "Default: 2025 Minimum Wage"}
+                helperText={isBelowMinWage ? `최저임금 ${formatCurrency(MINIMUM_WAGE)}원 이하입니다.` : "기본: 2025년도 최저임금"}
             />
             </Grid>
 
@@ -160,7 +166,7 @@ export default function Step4Wage() {
                     Probation Period (수습기간 설정)
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                    Apply 90% wage during probation (Max 3 months).
+                    수습시간 10% 감액 적용 (최대 3개월).
                 </Typography>
                 </Box>
                 <FormControlLabel

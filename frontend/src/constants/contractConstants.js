@@ -7,10 +7,11 @@ export const INITIAL_CONTRACT_STATE = {
     contract: {
         type: '', // 'STANDARD', 'PART_TIME', 'MINOR', etc.
         jobCategory: 'OFFICE',
+        jobCategoryReason: '',
         
         // 1. Parties
-        employerName: '',
-        workerName: '',
+        employerName: '홍길동',
+        workerName: '김철수',
 
         // 2. Basic Info
         workplace: '',         
@@ -33,12 +34,12 @@ export const INITIAL_CONTRACT_STATE = {
             type: 'HOURLY',
             amount: '',
             hasBonus: false,
-            bonusAmount: '',      // Added for bonus value
+            bonusAmount: '',      
             otherAllowances: [], 
-            paymentDate: '',      // Added
-            paymentMethod: '',    // Added
-            hasProbation: false,  // Added
-            probationWagePercent: 100, // Added
+            paymentDate: '',     
+            paymentMethod: '근로자 명의 예금통장에 입금',    
+            hasProbation: false,  
+            probationWagePercent: 100, 
         },
 
         // 5. Additional Info (New Fields for Standard Contract Items 7~11)
