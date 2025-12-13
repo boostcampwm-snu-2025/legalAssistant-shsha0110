@@ -58,6 +58,18 @@ export default function Step4Wage() {
         }
     };
 
+    // Handle Reduction Rate Change (Max 10%)
+    const handleReductionChange = (e) => {
+        let val = Number(e.target.value);
+        
+        // Validation: 0 <= val <= 10
+        if (val < 0) val = 0;
+        if (val > 10) val = 10; // Enforce legal limit
+
+        // Update state: probationWagePercent = 100 - reductionRate
+        actions.updateContractSection('wage', { probationWagePercent: 100 - val });
+    };
+
     // --- 3. Calculations & Logic ---
 
     // Check legality of probation wage reduction (Scenario 2)
@@ -101,8 +113,11 @@ export default function Step4Wage() {
     const baseAmount = Number(wage.amount) || 0;
     const isBelowMinWage = baseAmount < MINIMUM_WAGE;
     
-    // Probation Wage Calculation (90%)
-    const probationAmount = Math.floor(baseAmount * 0.9);
+    // Calculate dynamically based on state
+    // wage.probationWagePercent stores the PAYMENT rate (e.g., 90)
+    // reductionRate is what user sees (e.g., 10)
+    const currentReductionRate = 100 - wage.probationWagePercent;
+    const probationAmount = Math.floor(baseAmount * (wage.probationWagePercent / 100));
     const probationAmountFormatted = formatCurrency(probationAmount);
 
     // Max Date for Probation (Max 3 months from start)
@@ -111,13 +126,16 @@ export default function Step4Wage() {
 
     // Validation for Next Button
     const isValid = () => {
-        return baseAmount >= MINIMUM_WAGE; // Must meet minimum wage
+        const metMinimumWage = baseAmount >= MINIMUM_WAGE
+        const hasPaymentDate = !!wage.paymentDate;
+        const hasPaymentMethod = !!wage.paymentMethod;
+        return metMinimumWage && hasPaymentDate && hasPaymentMethod;
     };
 
     return (
         <Box>
         <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            Wage & Benefits (임금 및 복리후생)
+            임금 관련 항목을 입력해주세요!
         </Typography>
 
         <Grid container spacing={3}>
@@ -125,23 +143,23 @@ export default function Step4Wage() {
             {/* --- 1. Wage Type & Amount --- */}
             <Grid item xs={12} md={6}>
             <Typography variant="subtitle2" gutterBottom>
-                Wage Type (임금 유형)
+                6.1. 임금 유형
             </Typography>
             <FormControl fullWidth size="small">
                 <Select
                 value={wage.type}
                 onChange={(e) => handleWageChange('type', e.target.value)}
                 >
-                <MenuItem value="HOURLY">Hourly (시급)</MenuItem>
-                <MenuItem value="MONTHLY">Monthly (월급)</MenuItem>
-                <MenuItem value="DAILY">Daily (일급)</MenuItem>
+                <MenuItem value="HOURLY">시급</MenuItem>
+                <MenuItem value="MONTHLY">월급</MenuItem>
+                <MenuItem value="DAILY">일급</MenuItem>
                 </Select>
             </FormControl>
             </Grid>
 
             <Grid item xs={12} md={6}>
             <Typography variant="subtitle2" gutterBottom>
-                Amount (금액)
+                금액
             </Typography>
             <TextField
                 fullWidth
@@ -150,7 +168,7 @@ export default function Step4Wage() {
                 value={wage.amount}
                 onChange={(e) => handleWageChange('amount', e.target.value)}
                 InputProps={{
-                endAdornment: <InputAdornment position="end">KRW</InputAdornment>,
+                endAdornment: <InputAdornment position="end">원</InputAdornment>,
                 }}
                 error={isBelowMinWage}
                 helperText={isBelowMinWage ? `최저임금 ${formatCurrency(MINIMUM_WAGE)}원 이하입니다.` : "기본: 2025년도 최저임금"}
@@ -163,10 +181,10 @@ export default function Step4Wage() {
             <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
                 <Typography variant="subtitle1" fontWeight="bold">
-                    Probation Period (수습기간 설정)
+                    수습기간 설정
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                    수습시간 10% 감액 적용 (최대 3개월).
+                    수습시간 최대 10% 감액 가능 (최대 3개월).
                 </Typography>
                 </Box>
                 <FormControlLabel
@@ -189,57 +207,79 @@ export default function Step4Wage() {
                 </Alert>
             )}
 
-            {/* Probation Details Panel (Visible only when Active) */}
+            {/* Probation Details Panel */}
             {wage.hasProbation && (
                 <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#f8f9fa' }}>
                 <Grid container spacing={2}>
                     
-                    {/* A. Probation Duration (Max 3 Months) */}
-                    <Grid item xs={12} md={6}>
+                    {/* A. Probation Duration */}
+                    <Grid item xs={12} md={4}>
                     <Typography variant="body2" gutterBottom fontWeight="bold">
-                        Probation End Date (수습 종료일)
+                        수습 종료일
                     </Typography>
                     <DatePicker
                         value={wage.probationEndDate}
                         onChange={(val) => handleWageChange('probationEndDate', val)}
                         minDate={startWorkDate}
-                        maxDate={maxProbationDate} // Constraint: Max 3 months
+                        maxDate={maxProbationDate} 
                         slotProps={{ 
                         textField: { 
                             fullWidth: true, 
                             size: 'small',
-                            helperText: "Max 3 months allowed by law."
+                            helperText: "최대 3개월간 임금 감액이 가능합니다."
                         } 
                         }}
                     />
                     </Grid>
 
-                    {/* B. Calculated Wage Display */}
-                    <Grid item xs={12} md={6}>
-                    <Box height="100%" display="flex" flexDirection="column" justifyContent="center">
+                    {/* [NEW] B. Reduction Rate Input */}
+                    <Grid item xs={12} md={4}>
+                    <Typography variant="body2" gutterBottom fontWeight="bold">
+                        감액률
+                    </Typography>
+                    <TextField
+                        fullWidth
+                        size="small"
+                        type="number"
+                        value={currentReductionRate}
+                        onChange={handleReductionChange}
+                        InputProps={{
+                        endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                        }}
+                        helperText={
+                        <span style={{ color: currentReductionRate === 10 ? 'orange' : 'inherit' }}>
+                            최대 10% (법정 상한)
+                        </span>
+                        }
+                    />
+                    </Grid>
+
+                    {/* [MODIFIED] C. Calculated Wage Display */}
+                    <Grid item xs={12} md={4}>
+                    <Box height="100%" display="flex" flexDirection="column" justifyContent="flex-start">
                         <Typography variant="body2" gutterBottom fontWeight="bold" display="flex" alignItems="center">
                         <CalculateIcon fontSize="small" sx={{ mr: 0.5 }} /> 
-                        Actual Wage during Probation
+                        감액된 임금
                         </Typography>
                         <Box 
                         bgcolor="#fff" p={1.5} borderRadius={1} border="1px dashed #ccc"
-                        display="flex" justifyContent="space-between" alignItems="center"
+                        display="flex" flexDirection="column" gap={0.5}
                         >
-                        <Typography variant="body2" color="text.secondary">
-                            90% of {formatCurrency(baseAmount)}
+                        <Typography variant="caption" color="text.secondary">
+                            기존 임금의 {wage.probationWagePercent}%
                         </Typography>
                         <Typography variant="h6" color="primary.main" fontWeight="bold">
-                            {probationAmountFormatted} KRW
+                            {probationAmountFormatted} 원
                         </Typography>
                         </Box>
                     </Box>
                     </Grid>
 
-                    {/* C. Legal Notice */}
+                    {/* D. Legal Notice (Bottom) */}
                     <Grid item xs={12}>
                     <Alert severity="info" icon={<PaidIcon />}>
-                        During this period ({dayjs(startWorkDate).format('YYYY-MM-DD')} ~ {dayjs(wage.probationEndDate).format('YYYY-MM-DD')}), 
-                        <strong> 90% of the wage</strong> will be paid. After this date, 100% will be paid automatically.
+                        수습기간 ({dayjs(startWorkDate).format('YYYY-MM-DD')} ~ {dayjs(wage.probationEndDate).format('YYYY-MM-DD')}) 동안,
+                        <strong> 기존 임금의 {wage.probationWagePercent}% </strong>가 지급됩니다. (그 이후로는 원상 지급)
                     </Alert>
                     </Grid>
 
@@ -250,17 +290,17 @@ export default function Step4Wage() {
 
             {/* --- 3. Payment Day & Method (Standard) --- */}
             <Grid item xs={12} md={6}>
-            <Typography variant="subtitle2" gutterBottom>Payment Day (임금 지급일)</Typography>
+            <Typography variant="subtitle2" gutterBottom>6.2. 임금 지급일</Typography>
             <TextField 
-                fullWidth size="small" placeholder="e.g., 10th of every month" 
+                fullWidth size="small" placeholder="예) 매달 1일" 
                 value={wage.paymentDate || ''}
                 onChange={(e) => handleWageChange('paymentDate', e.target.value)}
             />
             </Grid>
             <Grid item xs={12} md={6}>
-            <Typography variant="subtitle2" gutterBottom>Payment Method (지급 방법)</Typography>
+            <Typography variant="subtitle2" gutterBottom>6.3. 지급 방법</Typography>
             <TextField 
-                fullWidth size="small" placeholder="e.g., Bank Transfer to Employee's Account" 
+                fullWidth size="small" placeholder="예) 근로자 명의 통장으로 입금" 
                 value={wage.paymentMethod || ''}
                 onChange={(e) => handleWageChange('paymentMethod', e.target.value)}
             />
@@ -271,14 +311,14 @@ export default function Step4Wage() {
         {/* --- Navigation --- */}
         <Box mt={4} display="flex" justifyContent="space-between">
             <Button variant="outlined" onClick={actions.prevStep}>
-            Back (Work Time)
+            이전
             </Button>
             <Button 
             variant="contained" 
             onClick={actions.nextStep}
             disabled={!isValid()}
             >
-            Next Step (Additional Info)
+            다음
             </Button>
         </Box>
         </Box>

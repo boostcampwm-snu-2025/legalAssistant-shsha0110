@@ -1,226 +1,221 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
-  Box, Typography, Button, Paper, CircularProgress, 
-  Chip, List, ListItem, ListItemIcon, ListItemText, Alert,
-  TextField, IconButton, Divider, Avatar
+  Box, Typography, Button, Paper, CircularProgress, Alert, Divider,
+  Chip, List, ListItem, ListItemIcon, ListItemText
 } from '@mui/material';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import EditIcon from '@mui/icons-material/Edit';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import SendIcon from '@mui/icons-material/Send';
-import SmartToyIcon from '@mui/icons-material/SmartToy'; // AI Icon
-import PersonIcon from '@mui/icons-material/Person'; // User Icon
 
 import { useContract } from '../../contexts/ContractContext';
-import { reviewContract, sendChat } from '../../api/contractApi';
+import { reviewContract } from '../../api/contractApi';
+import ReviewChat from '../common/ReviewChat'; 
+
+// Helper function to determine color based on risk level
+const getRiskColor = (level) => {
+    if (level === 'SAFE') return 'success';
+    if (level === 'MODERATE') return 'warning'; 
+    if (level === 'RISKY' || level === 'DANGER') return 'error';
+    return 'info'; 
+};
 
 export default function Step6Review() {
     const { state, actions } = useContract();
     
-    // State for Analysis
+    // State for API calls
     const [loading, setLoading] = useState(true);
-    const [result, setResult] = useState(null);
-    
-    // State for Chat
-    const [chatInput, setChatInput] = useState('');
-    const [chatHistory, setChatHistory] = useState([]);
-    const [chatLoading, setChatLoading] = useState(false);
-    const chatEndRef = useRef(null); // For auto-scrolling
+    const [analysis, setAnalysis] = useState(null);
+    const [error, setError] = useState(null);
 
-    // --- 1. Initial Analysis (Mount) ---
-    useEffect(() => {
-        const fetchAnalysis = async () => {
-            try {
-                setLoading(true);
-                const data = await reviewContract(state.contract);
-                setResult(data);
-                // Add initial greeting to chat
-                setChatHistory([{
-                    role: 'ai',
-                    text: "I have finished analyzing your contract. Do you have any questions about the results?"
-                }]);
-            } catch (err) {
-                console.error("Analysis failed", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchAnalysis();
-    }, []);
-
-    // Scroll to bottom of chat
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatHistory]);
-
-
-    // --- 2. Chat Handlers ---
-    const handleSendMessage = async () => {
-        if (!chatInput.trim()) return;
-
-        const userMsg = chatInput;
-        setChatInput(''); // Clear input
-
-        // Add User Message
-        setChatHistory(prev => [...prev, { role: 'user', text: userMsg }]);
-        setChatLoading(true);
-
+    // --- 1. Fetch AI Analysis ---
+    const fetchAnalysis = async () => {
+        setLoading(true);
+        setError(null);
         try {
-            // API Call
-            const data = await sendChat(userMsg, state.contract);
-            // Add AI Response
-            setChatHistory(prev => [...prev, { role: 'ai', text: data.reply }]);
+            // Call the backend API to review the contract
+            const result = await reviewContract(state.contract);
+            setAnalysis(result);
         } catch (err) {
-            setChatHistory(prev => [...prev, { role: 'ai', text: "Sorry, I couldn't process that. Please try again." }]);
+            console.error("Analysis Error:", err);
+            setError("AI 분석 서버와 통신에 실패했습니다. (Network Error)");
         } finally {
-            setChatLoading(false);
+            setLoading(false);
         }
     };
 
-    const handleKeyPress = (e) => {
-        if (e.key === 'Enter') handleSendMessage();
-    };
+    // Trigger analysis on component mount
+    useEffect(() => {
+        fetchAnalysis();
+    }, []);
 
+    // --- 2. Handlers ---
+    
+    // Retry the API call if it fails
+    const handleRetry = () => fetchAnalysis();
+    
+    // Go back to the previous step (Step 5) to modify data
+    const handleEdit = () => actions.prevStep();
 
-    // --- Render Helpers ---
-    const getRiskColor = (level) => {
-        if (level === 'SAFE') return 'success';
-        if (level === 'DANGER') return 'error';
-        return 'warning';
-    };
+    // --- 3. Render Views ---
 
-    // --- Loading View ---
+    // View A: Loading State
     if (loading) {
         return (
-        <Box display="flex" flexDirection="column" alignItems="center" py={10}>
-            <CircularProgress size={60} />
-            <Typography variant="h6" mt={3}>AI Legal Advisor is reviewing...</Typography>
-            <Typography variant="body2" color="text.secondary">Checking Labor Standards Act compliance</Typography>
-        </Box>
+            <Box display="flex" flexDirection="column" alignItems="center" py={10}>
+                <CircularProgress size={60} thickness={4} />
+                <Typography variant="h6" mt={3} color="text.secondary">
+                    AI Legal Advisor is reviewing...
+                </Typography>
+            </Box>
         );
     }
 
-    // --- Main View ---
-    return (
-        <Box>
-        <Typography variant="h5" gutterBottom fontWeight="bold" color="primary">
-            📊 AI Legal Review Report
-        </Typography>
-
-        {/* --- Section A: Analysis Report --- */}
-        <Paper elevation={3} sx={{ p: 3, mb: 4, bgcolor: '#fff' }}>
-            
-            {/* Score Header */}
-            <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
-            <Box>
-                <Typography variant="subtitle2" color="text.secondary">Legal Safety Score</Typography>
-                <Typography variant="h3" fontWeight="bold" color={getRiskColor(result.riskLevel) + '.main'}>
-                {result.riskScore} <Typography component="span" variant="h6" color="text.secondary">/ 100</Typography>
-                </Typography>
-            </Box>
-            <Chip 
-                label={result.riskLevel} 
-                color={getRiskColor(result.riskLevel)} 
-                sx={{ fontSize: '1.2rem', py: 3, px: 2, fontWeight: 'bold' }} 
-            />
-            </Box>
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* 3-Line Summary */}
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>📝 Easy Summary</Typography>
-            <List dense sx={{ bgcolor: '#f9f9f9', borderRadius: 2 }}>
-            <ListItem>
-                <ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon>
-                <ListItemText primary="Wage" secondary={result.plainLanguageSummary.wage} />
-            </ListItem>
-            <ListItem>
-                <ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon>
-                <ListItemText primary="Work Time" secondary={result.plainLanguageSummary.workTime} />
-            </ListItem>
-            <ListItem>
-                <ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon>
-                <ListItemText primary="Key Rights" secondary={result.plainLanguageSummary.rights} />
-            </ListItem>
-            </List>
-
-            {/* Issues List */}
-            {result.issues.length > 0 && (
-            <Box mt={3}>
-                <Typography variant="subtitle1" fontWeight="bold" gutterBottom color="error.main">
-                ⚠️ Action Items ({result.issues.length})
-                </Typography>
-                {result.issues.map((issue, idx) => (
-                <Alert severity={issue.type === 'ILLEGAL' ? 'error' : 'warning'} key={idx} sx={{ mb: 1 }}>
-                    <strong>{issue.message}</strong><br/>
-                    Suggestion: {issue.suggestion}
-                </Alert>
-                ))}
-            </Box>
-            )}
-        </Paper>
-
-        {/* --- Section B: AI Chat (Q&A) --- */}
-        <Typography variant="h6" gutterBottom fontWeight="bold" mt={4}>
-            💬 Ask AI Lawyer (Q&A)
-        </Typography>
-        
-        <Paper variant="outlined" sx={{ height: '400px', display: 'flex', flexDirection: 'column' }}>
-            
-            {/* Chat History Area */}
-            <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2, bgcolor: '#f8f9fa' }}>
-            {chatHistory.map((msg, idx) => (
-                <Box 
-                key={idx} 
-                display="flex" 
-                justifyContent={msg.role === 'user' ? 'flex-end' : 'flex-start'}
-                mb={2}
+    // View B: Error State
+    if (error) {
+        return (
+            <Box display="flex" flexDirection="column" alignItems="center" py={8}>
+                <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
+                <Button 
+                    variant="contained" 
+                    startIcon={<RefreshIcon />} 
+                    onClick={handleRetry}
                 >
-                {msg.role === 'ai' && <Avatar sx={{ bgcolor: 'primary.main', mr: 1, width: 32, height: 32 }}><SmartToyIcon fontSize="small" /></Avatar>}
+                    Retry Analysis
+                </Button>
+                <Button sx={{ mt: 2 }} onClick={handleEdit}>
+                    Go Back
+                </Button>
+            </Box>
+        );
+    }
+
+    // View C: Success State (Analysis Report)
+    return (
+        <Box height="100%">
+            
+            {/* --- Section A: Analysis Report --- */}
+            <Paper elevation={3} sx={{ p: 3, mb: 4, bgcolor: '#fff' }}>
                 
-                <Paper sx={{ 
-                    p: 1.5, 
-                    maxWidth: '70%', 
-                    bgcolor: msg.role === 'user' ? 'primary.main' : '#fff',
-                    color: msg.role === 'user' ? '#fff' : '#000',
-                    borderRadius: 2
-                }}>
-                    <Typography variant="body2">{msg.text}</Typography>
-                </Paper>
+                {/* 1. Score Header */}
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+                    <Box>
+                        <Typography variant="subtitle2" color="text.secondary">
+                            Legal Safety Score
+                        </Typography>
+                        <Typography 
+                            variant="h3" 
+                            fontWeight="bold" 
+                            color={getRiskColor(analysis?.riskLevel) + '.main'}
+                        >
+                            {analysis?.riskScore || 0} 
+                            <Typography component="span" variant="h6" color="text.secondary">
+                                / 100
+                            </Typography>
+                        </Typography>
+                    </Box>
+                    <Chip 
+                        label={analysis?.riskLevel || 'UNKNOWN'} 
+                        color={getRiskColor(analysis?.riskLevel)} 
+                        sx={{ fontSize: '1.2rem', py: 3, px: 2, fontWeight: 'bold' }} 
+                    />
                 </Box>
-            ))}
-            {chatLoading && (
-                <Box display="flex" justifyContent="flex-start" mb={2}>
-                <Avatar sx={{ bgcolor: 'primary.main', mr: 1, width: 32, height: 32 }}><SmartToyIcon fontSize="small" /></Avatar>
-                <Paper sx={{ p: 1.5, bgcolor: '#fff' }}>
-                    <Typography variant="body2" color="text.secondary">Typing...</Typography>
-                </Paper>
-                </Box>
-            )}
-            <div ref={chatEndRef} />
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* 2. 3-Line Summary */}
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    📝 Easy Summary
+                </Typography>
+                <List dense sx={{ bgcolor: '#f9f9f9', borderRadius: 2 }}>
+                    <ListItem>
+                        <ListItemIcon>
+                            <CheckCircleIcon color="success" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                            primary="Wage (임금)" 
+                            secondary={analysis?.plainLanguageSummary?.wage || "No information"} 
+                        />
+                    </ListItem>
+                    <ListItem>
+                        <ListItemIcon>
+                            <CheckCircleIcon color="success" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                            primary="Work Time (근로시간)" 
+                            secondary={analysis?.plainLanguageSummary?.workTime || "No information"} 
+                        />
+                    </ListItem>
+                    <ListItem>
+                        <ListItemIcon>
+                            <CheckCircleIcon color="success" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                            primary="Key Rights (주요 권리)" 
+                            secondary={analysis?.plainLanguageSummary?.rights || "No information"} 
+                        />
+                    </ListItem>
+                </List>
+
+                {/* 3. Issues List (Action Items) */}
+                {analysis?.issues?.length > 0 ? (
+                    <Box mt={3}>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom color="error.main">
+                            ⚠️ Action Items ({analysis.issues.length})
+                        </Typography>
+                        {analysis.issues.map((issue, idx) => (
+                            <Alert 
+                                severity={
+                                    typeof issue === 'object' && issue.type === 'ILLEGAL' 
+                                    ? 'error' 
+                                    : 'warning'
+                                } 
+                                key={idx} 
+                                sx={{ mb: 1 }}
+                            >
+                                {/* Safely handle Object vs String issue formats */}
+                                {typeof issue === 'object' ? (
+                                    <Box>
+                                        <strong>{issue.message}</strong>
+                                        {issue.suggestion && (
+                                            <div style={{ marginTop: '4px', fontSize: '0.9em' }}>
+                                                💡 {issue.suggestion}
+                                            </div>
+                                        )}
+                                    </Box>
+                                ) : (
+                                    <strong>{issue}</strong>
+                                )}
+                            </Alert>
+                        ))}
+                    </Box>
+                ) : (
+                    <Alert severity="success" sx={{ mt: 3 }}>
+                        <strong>Perfect!</strong> No legal risks detected.
+                    </Alert>
+                )}
+            </Paper>
+
+            {/* --- Section B: Chat Interface --- */}
+            <Box mb={4}>
+                <Typography variant="subtitle2" gutterBottom display="flex" alignItems="center" gap={1}>
+                    <AutoAwesomeIcon fontSize="small" color="primary"/> Ask AI Lawyer
+                </Typography>
+                {/* Pass analysis context to the chat component */}
+                <ReviewChat context={analysis} /> 
             </Box>
 
-            {/* Input Area */}
-            <Box p={2} bgcolor="#fff" borderTop="1px solid #ddd" display="flex" gap={1}>
-            <TextField
-                fullWidth
-                size="small"
-                placeholder="Ask about your contract (e.g., 'Is the probation period legal?')"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={chatLoading}
-            />
-            <IconButton color="primary" onClick={handleSendMessage} disabled={chatLoading || !chatInput.trim()}>
-                <SendIcon />
-            </IconButton>
+            {/* --- Section C: Action Buttons --- */}
+            <Box mt={4} display="flex" justifyContent="flex-start">
+                <Button 
+                    variant="outlined" 
+                    size="large"
+                    startIcon={<EditIcon />} 
+                    onClick={handleEdit}
+                >
+                    수정하기
+                </Button>
             </Box>
-        </Paper>
-
-        {/* Final Action */}
-        <Box mt={4} textAlign="center">
-            <Button variant="contained" size="large" color="success" sx={{ px: 5, py: 1.5 }}>
-            Download Signed PDF (Final)
-            </Button>
-        </Box>
 
         </Box>
     );

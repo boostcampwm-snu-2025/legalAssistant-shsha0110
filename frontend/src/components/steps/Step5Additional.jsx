@@ -36,7 +36,7 @@ export default function Step5Additional() {
     return (
         <Box>
         <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            Additional Legal Requirements (기타 법적 의무 및 사회보험)
+            기타 법적 의무 및 사회보험을 입력주세요!
         </Typography>
 
         <Grid container spacing={3}>
@@ -45,10 +45,10 @@ export default function Step5Additional() {
             <Grid item xs={12}>
             <Paper variant="outlined" sx={{ p: 2 }}>
                 <Typography variant="subtitle2" gutterBottom fontWeight="bold">
-                8. Social Insurance Application (사회보험 적용 여부)
+                8. 사회보험 적용 여부
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                Select applicable insurances (Check all for standard employment).
+                    해당되는 보험을 모두 선택해주세요. (4대 사회보험 적용을 원칙으로 함.)
                 </Typography>
                 
                 <FormGroup row sx={{ mt: 1 }}>
@@ -59,7 +59,7 @@ export default function Step5Additional() {
                         onChange={() => handleInsuranceChange('employment')} 
                     />
                     }
-                    label="Employment (고용보험)"
+                    label="고용보험"
                 />
                 <FormControlLabel
                     control={
@@ -68,7 +68,7 @@ export default function Step5Additional() {
                         onChange={() => handleInsuranceChange('accident')} 
                     />
                     }
-                    label="Accident (산재보험)"
+                    label="산재보험"
                 />
                 <FormControlLabel
                     control={
@@ -77,7 +77,7 @@ export default function Step5Additional() {
                         onChange={() => handleInsuranceChange('pension')} 
                     />
                     }
-                    label="Pension (국민연금)"
+                    label="국민연금"
                 />
                 <FormControlLabel
                     control={
@@ -86,7 +86,7 @@ export default function Step5Additional() {
                         onChange={() => handleInsuranceChange('health')} 
                     />
                     }
-                    label="Health (건강보험)"
+                    label="건강보험"
                 />
                 </FormGroup>
             </Paper>
@@ -98,18 +98,18 @@ export default function Step5Additional() {
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <VerifiedUserIcon color="success" fontSize="small" />
                 <Typography variant="subtitle2" fontWeight="bold">
-                    Standard Legal Clauses (Included Automatically)
+                    표준 법률 조항 (자동 포함)
                 </Typography>
                 </Box>
                 <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.875rem', color: '#555' }}>
                 <li>
-                    <strong>7. Annual Paid Leave:</strong> Granted according to the Labor Standards Act.
+                    <strong>7. 연차유급휴가:</strong> 연차유급휴가는 근로기준법에서 정하는 바에 따라 부여함.
                 </li>
                 <li>
-                    <strong>9. Contract Delivery:</strong> The employer must provide a copy of this contract to the worker immediately upon signing.
+                    <strong>9. 근로계약서 교부:</strong> 사업주는 근로계약을 체결함과 동시에 본 계약서를 사본하여 근로자의 교부요구와 관계없이 근로자에게 교부함(근로기준법 제17조 이행).
                 </li>
                 <li>
-                    <strong>10. Duty of Good Faith:</strong> Both parties shall fulfill the contract and employment rules faithfully.
+                    <strong>10. 근로계약, 취업규칙 등의 성실한 이행의무:</strong> 사업주와 근로자는 각자가 근로계약, 취업규칙, 단체협약을 지키고 성실하게 이행하여야 함.
                 </li>
                 </ul>
             </Box>
@@ -118,16 +118,16 @@ export default function Step5Additional() {
             {/* --- Item 11: Other Terms (Custom Input - AI Risk Analysis Target) --- */}
             <Grid item xs={12}>
             <Typography variant="subtitle2" gutterBottom fontWeight="bold">
-                11. Other Terms & Conditions (기타 특약 사항)
+                11. 기타 특약 사항
             </Typography>
             <TextField
                 fullWidth
                 multiline
                 rows={4}
-                placeholder="Enter any specific agreements here. (e.g., Uniform provided, Probation details, etc.)"
+                placeholder="기타 특약 사항을 입력해주세요!  예) 유니폼 착용, 수습 기간 관련 사항 등"
                 value={otherDetails.otherTerms}
                 onChange={handleOtherTermsChange}
-                helperText="WARNING: Clauses violating labor laws (e.g., 'penalty for quitting') will be flagged by AI in the next step."
+                helperText="Warning: 근로기준법을 위반하는 조항은 다음 단계에서 AI에 의해 경고 표시가 됩니다."
             />
             </Grid>
 
@@ -136,7 +136,7 @@ export default function Step5Additional() {
         {/* --- Navigation --- */}
         <Box mt={4} display="flex" justifyContent="space-between">
             <Button variant="outlined" onClick={actions.prevStep}>
-            Back (Wage)
+            이전
             </Button>
             <Button 
             variant="contained" 
@@ -144,7 +144,7 @@ export default function Step5Additional() {
             color="secondary" // Highlight "Finish" action
             onClick={actions.nextStep}
             >
-            Review & Create (작성 완료)
+            작성완료
             </Button>
         </Box>
         </Box>

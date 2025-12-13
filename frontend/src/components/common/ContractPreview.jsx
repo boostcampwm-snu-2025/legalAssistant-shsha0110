@@ -2,7 +2,10 @@ import React from 'react';
 import { Paper, Box, Typography, Divider } from '@mui/material';
 import { useContract } from '../../contexts/ContractContext';
 import { formatCurrency } from '../../utils/formatUtils';
+import { DAY_MAP } from '../../constants/contractConstants';
 import dayjs from 'dayjs';
+
+export const PREVIEW_ID = 'contract-preview-target';
 
 export default function ContractPreview() {
     const { state } = useContract();
@@ -30,7 +33,7 @@ export default function ContractPreview() {
         minWidth: '50px',
         display: 'inline-block',
         textAlign: 'center',
-        color: children ? '#0000FF' : '#ccc', // 입력되면 파란색, 비어있으면 회색
+        color: children ? '#0000FF' : '#ccc',
         fontWeight: children ? 'bold' : 'normal',
         width: width
         }}>
@@ -38,18 +41,13 @@ export default function ContractPreview() {
         </span>
     );
 
+    const kHoliday = DAY_MAP[contract.workSchedule.weeklyHoliday] || '';
+
     return (
         <Paper 
-        elevation={4} 
-        sx={{ 
-            p: 4, 
-            minHeight: '800px', // A4 비율 느낌
-            bgcolor: '#fff',
-            fontFamily: '"Batang", "Serif"', // 명조체 계열로 계약서 느낌
-            color: '#000',
-            fontSize: '14px',
-            lineHeight: 1.8
-        }}
+        id={PREVIEW_ID} 
+        elevation={3} 
+        sx={{ p: 4, minHeight: '800px', fontFamily: 'serif' }}
         >
         {/* Title */}
         <Box textAlign="center" mb={4} border="2px solid #000" p={1}>
@@ -106,7 +104,7 @@ export default function ContractPreview() {
             <Typography fontWeight="bold" fontFamily="inherit">5. 근무일/휴일 :</Typography>
             <Box pl={2}>
             매주 <VariableText>{contract.workSchedule.workingDays.length}</VariableText>일 근무, 
-            주휴일 매주 <VariableText>{contract.workSchedule.weeklyHoliday}</VariableText>요일
+            주휴일 매주 <VariableText>{kHoliday}</VariableText>요일
             </Box>
         </Box>
 
@@ -117,8 +115,8 @@ export default function ContractPreview() {
             - {contract.wage.type === 'HOURLY' ? '시급' : contract.wage.type === 'MONTHLY' ? '월급' : '일급'}: 
             <VariableText>{formatCurrency(contract.wage.amount)}</VariableText> 원 <br/>
             - 상여금: {contract.wage.hasBonus ? `있음 (${formatCurrency(contract.wage.bonusAmount)}원)` : '없음'} <br/>
-            - 임금지급일: 매월 <VariableText>{contract.wage.paymentDate}</VariableText>일 <br/>
-            - 지급방법: {contract.wage.paymentMethod || '근로자 명의 예금통장에 입금'}
+            - 임금지급일: <VariableText>{contract.wage.paymentDate}</VariableText> <br/>
+            - 지급방법: <VariableText>{contract.wage.paymentMethod}</VariableText>
             </Box>
         </Box>
 

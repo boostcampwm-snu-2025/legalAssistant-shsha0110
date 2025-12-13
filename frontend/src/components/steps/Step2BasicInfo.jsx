@@ -44,7 +44,15 @@ export default function Step2BasicInfo() {
 
   const handleDurationPreset = (amount, unit) => {
     if (!contract.startWorkDate) return;
-    const newEndDate = contract.startWorkDate.add(amount, unit).subtract(1, 'day');
+
+    let newEndDate;
+    if (amount === 0) {
+      newEndDate = null;
+    } else if (amount > 0) {
+      newEndDate = contract.endWorkDate ? contract.endWorkDate.add(amount, unit).subtract(1, 'day') : contract.startWorkDate.add(amount, unit).subtract(1, 'day');
+    } else {
+      newEndDate = contract.endWorkDate? contract.endWorkDate.add(amount, unit).subtract(-1, 'day') : contract.startWorkDate.add(amount, unit).add(1, 'day');
+    } 
     actions.setContractField('endWorkDate', newEndDate);
   };
 
@@ -63,7 +71,7 @@ export default function Step2BasicInfo() {
 
         setAnalysisResult({
           type: 'SIMPLE_LABOR',
-          message: `AI Analysis: Classified as '${reasonDetail}' (Simple Labor). Wage reduction during probation is disabled.`
+          message: `AI 직업분석 결과: '${reasonDetail}'(단순노무직)으로 분류되었습니다. 수습기간이라도 임금 감액이 불가합니다.`
         });
       } else {
         actions.setContractField('jobCategory', 'OFFICE');
@@ -71,7 +79,7 @@ export default function Step2BasicInfo() {
 
         setAnalysisResult({
           type: 'OFFICE',
-          message: "AI Analysis: Classified as 'Standard/Office Job'. No special restrictions."
+          message: "AI 직업분석 결과: 단순노무직이 아닌 것으로 분류되었습니다. 수습기간 임금 감액이 가능합니다."
         });
       }
     } catch (error) {
@@ -102,7 +110,7 @@ export default function Step2BasicInfo() {
     if (months > 0) parts.push(`${months}개월`);
     if (days > 0) parts.push(`${days}일`);
 
-    return parts.length > 0 ? `Total Period: ${parts.join(' ')}` : "1 Day";
+    return parts.length > 0 ? `총 계약 기간: ${parts.join(' ')}` : "1 Day";
   }, [contract.startWorkDate, contract.endWorkDate, isIndefinite]);
 
 
@@ -112,14 +120,15 @@ export default function Step2BasicInfo() {
     const hasLocation = !!contract.workplace?.trim();
     const hasJob = !!contract.jobDescription?.trim();
     const hasEnd = isIndefinite ? true : !!contract.endWorkDate;
+    const hasAnalysisResult = !!analysisResult;
 
-    return hasStart && hasLocation && hasJob && hasEnd;
+    return hasStart && hasLocation && hasJob && hasEnd && hasAnalysisResult;
   };
 
   return (
     <Box>
       <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-        Basic Information (기본 근로 조건)
+        기본 근로 조건을 입력하세요!
       </Typography>
 
       <Grid container spacing={3}>
@@ -127,15 +136,15 @@ export default function Step2BasicInfo() {
         {/* --- 1. Contract Period (Modified Layout) --- */}
         <Grid item xs={12}>
           <Typography variant="subtitle2" gutterBottom>
-            1. Contract Period (근로계약기간)
+            1. 근로계약기간
           </Typography>
           
-          {/* [FIX] Use Grid container instead of Box(flex) to handle wrapping gracefully */}
+          {/* Use Grid container instead of Box(flex) to handle wrapping gracefully */}
           <Grid container spacing={2} alignItems="center">
             {/* Start Date */}
             <Grid item xs={12} sm={5}>
               <DatePicker
-                label="Start Date"
+                label="시작일"
                 value={contract.startWorkDate}
                 onChange={(val) => handleDateChange('startWorkDate', val)}
                 slotProps={{ textField: { size: 'small', fullWidth: true } }}
@@ -150,7 +159,7 @@ export default function Step2BasicInfo() {
             {/* End Date */}
             <Grid item xs={12} sm={6}>
               <DatePicker
-                label="End Date"
+                label="종료일"
                 value={contract.endWorkDate}
                 onChange={(val) => handleDateChange('endWorkDate', val)}
                 disabled={isIndefinite} 
@@ -158,7 +167,6 @@ export default function Step2BasicInfo() {
                   textField: { 
                     size: 'small',
                     fullWidth: true,
-                    helperText: isIndefinite ? "Indefinite Contract" : ""
                   } 
                 }}
               />
@@ -168,9 +176,11 @@ export default function Step2BasicInfo() {
           {/* Preset Buttons */}
           {!isIndefinite && (
             <Box mt={1} display="flex" alignItems="center" gap={1} flexWrap="wrap">
-              <Chip label="+ 3 Months" onClick={() => handleDurationPreset(3, 'month')} color="primary" variant="outlined" clickable size="small" />
-              <Chip label="+ 6 Months" onClick={() => handleDurationPreset(6, 'month')} color="primary" variant="outlined" clickable size="small" />
-              <Chip label="+ 1 Year" onClick={() => handleDurationPreset(1, 'year')} color="primary" variant="outlined" clickable size="small" />
+              <Chip label="- 1년" onClick={() => handleDurationPreset(-1, 'year')} color="primary" variant="outlined" clickable size="small" />
+              <Chip label="- 1개월" onClick={() => handleDurationPreset(-1, 'month')} color="primary" variant="outlined" clickable size="small" />
+              <Chip label="초기화" onClick={() => handleDurationPreset(0, 'year')} color="primary" variant="outlined" clickable size="small" />
+              <Chip label="+ 1개월" onClick={() => handleDurationPreset(1, 'month')} color="primary" variant="outlined" clickable size="small" />
+              <Chip label="+ 1년" onClick={() => handleDurationPreset(1, 'year')} color="primary" variant="outlined" clickable size="small" />
             </Box>
           )}
 
@@ -184,12 +194,12 @@ export default function Step2BasicInfo() {
         {/* --- 2. Workplace --- */}
         <Grid item xs={12}>
           <Typography variant="subtitle2" gutterBottom>
-            2. Workplace (근무 장소)
+            2. 근무 장소
           </Typography>
           <TextField
             fullWidth
             size="small"
-            placeholder="e.g., GS25 Gangnam Branch (GS25 강남점)"
+            placeholder="예) GS25 강남점"
             value={contract.workplace}
             onChange={(e) => handleChange('workplace', e.target.value)}
           />
@@ -198,7 +208,7 @@ export default function Step2BasicInfo() {
         {/* --- 3. Job Description with AI Check --- */}
         <Grid item xs={12}>
           <Typography variant="subtitle2" gutterBottom>
-            3. Job Description (업무의 내용)
+            3. 업무 내용
           </Typography>
           
           <Grid container spacing={1} alignItems="flex-start">
@@ -207,26 +217,26 @@ export default function Step2BasicInfo() {
                 fullWidth
                 multiline
                 rows={2}
-                placeholder="e.g., Cleaning the store, stocking shelves (매장 청소, 진열)"
+                placeholder="예) 편의점 아르바이트: 매장 청소, 진열, 재고 관리"
                 value={contract.jobDescription}
                 onChange={(e) => handleChange('jobDescription', e.target.value)}
                 onBlur={handleAnalyzeJob}
-                helperText="Tip: Specific descriptions help AI protect your rights."
+                helperText="Tip: 구체적으로 작성할수록 분쟁을 피할 수 있으며, AI가 당신의 권리를 보호하는데 더 많은 도움을 줄 수 있습니다."
               />
             </Grid>
             <Grid item>
-               <Tooltip title="AI Check for Simple Labor Classification">
+              <Tooltip title="AI를 통한 표준직업분류">
                 <Button 
                   variant="contained" 
-                  color="secondary" 
-                  sx={{ height: '56px', minWidth: '80px', borderRadius: 2 }}
+                  color="primary" 
+                  sx={{ height: '80px', minWidth: '80px', borderRadius: 2 }}
                   onClick={handleAnalyzeJob}
                   disabled={analyzing || !contract.jobDescription}
                 >
                   {analyzing ? <CircularProgress size={24} color="inherit" /> : (
                     <Box display="flex" flexDirection="column" alignItems="center">
                       <AutoAwesomeIcon fontSize="small" />
-                      <Typography variant="caption" sx={{ fontSize: '0.65rem', mt: 0.5 }}>AI Check</Typography>
+                      <Typography variant="caption" sx={{ fontSize: '0.65rem', mt: 0.5 }}>저장 및 직업분류</Typography>
                     </Box>
                   )}
                 </Button>
@@ -252,14 +262,14 @@ export default function Step2BasicInfo() {
       {/* --- Navigation --- */}
       <Box mt={4} display="flex" justifyContent="space-between">
         <Button variant="outlined" onClick={actions.prevStep}>
-          Back
+          이전
         </Button>
         <Button 
           variant="contained" 
           onClick={actions.nextStep}
           disabled={!isValid()}
         >
-          Next Step (Work Time)
+          다음
         </Button>
       </Box>
     </Box>

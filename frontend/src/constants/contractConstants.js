@@ -37,7 +37,7 @@ export const INITIAL_CONTRACT_STATE = {
             bonusAmount: '',      
             otherAllowances: [], 
             paymentDate: '',     
-            paymentMethod: '근로자 명의 예금통장에 입금',    
+            paymentMethod: '',    
             hasProbation: false,  
             probationWagePercent: 100, 
         },
@@ -59,14 +59,24 @@ export const INITIAL_CONTRACT_STATE = {
 
 // 2. Constants
 export const WEEKDAYS = [
-    { value: 'Mon', label: '월(Mon)' },
-    { value: 'Tue', label: '화(Tue)' },
-    { value: 'Wed', label: '수(Wed)' },
-    { value: 'Thu', label: '목(Thu)' },
-    { value: 'Fri', label: '금(Fri)' },
-    { value: 'Sat', label: '토(Sat)' },
-    { value: 'Sun', label: '일(Sun)' },
+    { value: 'Mon', label: '월' },
+    { value: 'Tue', label: '화' },
+    { value: 'Wed', label: '수' },
+    { value: 'Thu', label: '목' },
+    { value: 'Fri', label: '금' },
+    { value: 'Sat', label: '토' },
+    { value: 'Sun', label: '일' },
 ];
+
+export const DAY_MAP = {
+    Mon: '월',
+    Tue: '화',
+    Wed: '수',
+    Thu: '목',
+    Fri: '금',
+    Sat: '토',
+    Sun: '일',
+};
 
 export const CONTRACT_TYPES = [
     { value: 'STANDARD', label: '정규직 (Standard)' },

@@ -12,26 +12,26 @@ import { useContract } from '../../contexts/ContractContext';
 const CONTRACT_TYPES = [
     { 
         id: 'STANDARD', 
-        label: 'Standard (정규직)', 
-        desc: 'No fixed contract period.', 
+        label: '정규직', 
+        desc: '기간의 정함이 없는 경우입니다.', 
         icon: <PersonIcon fontSize="large" /> 
     },
     { 
         id: 'FIXED_TERM', 
-        label: 'Fixed-Term (계약직)', 
-        desc: 'Contract with an end date.', 
+        label: '계약직', 
+        desc: '기간의 정함이 있는 경우입니다.', 
         icon: <EventNoteIcon fontSize="large" /> 
     },
     { 
         id: 'PART_TIME', 
-        label: 'Part-Time (아르바이트)', 
-        desc: 'Short hours, weekly schedule.', 
+        label: '파트타임(아르바이트)', 
+        desc: '단시간 근로계획이 이루어지는 계약입니다.', 
         icon: <AccessTimeIcon fontSize="large" /> 
     },
     { 
         id: 'MINOR', 
-        label: 'Minor (연소자)', 
-        desc: 'Under 18, requires consent.', 
+        label: '연소자', 
+        desc: '18세 미만의 청소년이 근로자인 계약입니다.', 
         icon: <ChildCareIcon fontSize="large" /> 
     },
 ];
@@ -51,7 +51,7 @@ export default function Step1TypeSelection() {
     return (
         <Box>
         <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            Who are you hiring? (근로 형태를 선택하세요)
+            근로 유형을 선택하세요!
         </Typography>
 
         <Grid container spacing={3}>
@@ -94,16 +94,10 @@ export default function Step1TypeSelection() {
             disabled={!isSelected} // Disable if nothing selected
             onClick={actions.nextStep}
             >
-            Next Step (Time)
+            다음
             </Button>
         </Box>
 
-        {/* Debug: Show current selection */}
-        <Box mt={4} p={2} bgcolor="#f5f5f5" borderRadius={1}>
-            <Typography variant="caption" fontFamily="monospace">
-            Current Selection: {JSON.stringify(state.contract.type || 'None')}
-            </Typography>
-        </Box>
         </Box>
     );
 }

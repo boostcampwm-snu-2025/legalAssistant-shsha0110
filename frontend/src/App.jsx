@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { 
-  Container, Typography, Box, Grid, Fade, Paper, Fab, Tooltip, 
-  Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton 
+  Container, Typography, Box, Paper, Fab, Tooltip, 
+  Dialog, DialogContent, DialogActions, Button, IconButton,
+  Stepper, Step, StepLabel, Chip
 } from '@mui/material';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityIcon from '@mui/icons-material/Visibility'; 
 import CloseIcon from '@mui/icons-material/Close';
+import SecurityIcon from '@mui/icons-material/Security'; // Protection Icon
 
 // Context
 import { ContractProvider, useContract } from './contexts/ContractContext';
@@ -20,32 +22,62 @@ import Step6Review from './components/steps/Step6Review';
 // Preview Component
 import ContractPreview from './components/common/ContractPreview';
 
+// --- Define Step Labels ---
+const STEPS = [
+  '유형 선택',   // Type Selection
+  '기본 정보',   // Basic Info
+  '근로 시간',   // Work Time
+  '임금 설정',   // Wage
+  '기타/보험',   // Additional
+  'AI 검토'      // Review
+];
+
 function MainContent() {
   const { state } = useContract();
   
-  // State for controlling the Preview Modal
+  // State for Preview Modal
   const [openPreview, setOpenPreview] = useState(false);
 
-  // Show Preview Button only after Step 1 (Contract Type Selection)
+  // Show Preview Button after Step 1
   const showPreviewButton = state.currentStep > 0;
 
+  // Check if Minor Protection Mode is active
+  const isMinor = state.contract.type === 'MINOR';
+
   return (
-    // Set maxWidth to 'md' for a focused, centered form layout
     <Container maxWidth="md" sx={{ mt: 4, mb: 8 }}>
       
-      {/* --- Header --- */}
+      {/* --- Header Area --- */}
       <Box mb={4} textAlign="center">
-        <Typography variant="h4" component="h1" fontWeight="bold" color="primary">
-          Standard Labor Contract Generator
+        <Typography variant="h4" component="h1" fontWeight="bold" color="primary" gutterBottom>
+          표준근로계약서 작성 도우미
         </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          Step {state.currentStep + 1}
-        </Typography>
+        
+        {/* [NEW] Minor Protection Badge (Global Status) */}
+        {isMinor && (
+          <Box mb={2}>
+            <Chip 
+              icon={<SecurityIcon />} 
+              label="연소자(18세 미만) 안심 보호 모드 작동 중" 
+              color="success" 
+              variant="outlined" 
+              sx={{ fontWeight: 'bold', bgcolor: '#e8f5e9' }}
+            />
+          </Box>
+        )}
+
+        {/* [NEW] Visual Stepper */}
+        <Stepper activeStep={state.currentStep} alternativeLabel>
+          {STEPS.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
       </Box>
 
-      {/* --- Main Content (Single Column) --- */}
+      {/* --- Main Form Content --- */}
       <Box>
-        {/* Render Steps based on currentStep */}
         <Paper elevation={0} sx={{ p: { xs: 2, md: 4 }, border: '1px solid #e0e0e0', borderRadius: 2 }}>
             {state.currentStep === 0 && <Step1TypeSelection />}
             {state.currentStep === 1 && <Step2BasicInfo />}
@@ -56,9 +88,9 @@ function MainContent() {
         </Paper>
       </Box>
 
-      {/* --- Floating Action Button (Preview Trigger) --- */}
+      {/* --- Floating Preview Button --- */}
       {showPreviewButton && (
-        <Tooltip title="View Contract Preview (계약서 미리보기)">
+        <Tooltip title="계약서 미리보기">
           <Fab 
             color="primary" 
             aria-label="preview"
@@ -75,7 +107,7 @@ function MainContent() {
         </Tooltip>
       )}
 
-      {/* --- Preview Modal (Dialog) --- */}
+      {/* --- Preview Modal --- */}
       <Dialog 
         open={openPreview} 
         onClose={() => setOpenPreview(false)}
@@ -83,23 +115,19 @@ function MainContent() {
         fullWidth
         scroll="paper"
       >
-        {/* Modal Header */}
         <Box display="flex" justifyContent="space-between" alignItems="center" p={2} borderBottom="1px solid #eee">
           <Typography variant="h6" fontWeight="bold">
-            📄 Contract Live Preview
+            📄 계약서 미리보기
           </Typography>
           <IconButton onClick={() => setOpenPreview(false)}>
             <CloseIcon />
           </IconButton>
         </Box>
 
-        {/* Modal Content (The Contract) */}
         <DialogContent dividers sx={{ bgcolor: '#f5f5f5', p: 4 }}>
-          {/* Reusing the existing ContractPreview component */}
           <ContractPreview />
         </DialogContent>
 
-        {/* Modal Footer */}
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setOpenPreview(false)} variant="contained" color="primary">
             Close Preview
