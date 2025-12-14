@@ -10,7 +10,11 @@
 
 **프로젝트 시연 영상을 확인해보세요.**
 
-*[데모 영상]*
+
+https://github.com/user-attachments/assets/2a9df86d-75fc-4aff-989d-0d8670cf78c4
+
+
+
 
 ---
 
